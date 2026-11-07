@@ -124,7 +124,7 @@ export default {
     /* ---- Núcleo que se abre: esfera interior + caparazón de 20 fragmentos ---- */
     const mNuc=guardar(new THREE.MeshBasicMaterial(holo({opacity:0.8})));
     const nucleo=new THREE.Mesh(guardar(new THREE.SphereGeometry(R*0.06,24,16)),mNuc);pivote.add(nucleo);
-    const ico=new THREE.IcosahedronGeometry(R*0.12,0).toNonIndexed();
+    const ico=new THREE.IcosahedronGeometry(R*0.12,0);
     const base=ico.attributes.position.array.slice();ico.dispose();
     const caras=[];                               // centro y normal de cada fragmento
     for(let f=0;f<base.length/9;f++){
