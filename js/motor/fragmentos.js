@@ -49,9 +49,18 @@ export function fragmentar(pieza, esMarca, { objetivoPalabras = 110, maximoPalab
   return out.map((f, k) => ({ posicion: k, ...f }));
 }
 
-/** SHA-256 del contenido de una pieza (hex). */
+/** SHA-256 del contenido de una pieza (hex).
+    Piezas con ruta (Doctrina): ruta + etiquetas + texto, nunca la posición.
+    Lecturas: la fórmula de siempre (sus hashes guardados siguen valiendo). */
 export async function hashPieza(p) {
-  const datos = new TextEncoder().encode(JSON.stringify([p.tipo, p.numero, p.titulo, p.apellido || '', p.parrafos]));
+  const base = p.ruta ? ['ruta', p.ruta, p.etiquetas || [], p.parrafos] : [p.tipo, p.numero, p.titulo, p.apellido || '', p.parrafos];
+  const datos = new TextEncoder().encode(JSON.stringify(base));
   const h = await crypto.subtle.digest('SHA-256', datos);
+  return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** SHA-256 solo del texto (sin título): detecta piezas renombradas o movidas. */
+export async function hashTexto(p) {
+  const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(p.parrafos)));
   return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join('');
 }

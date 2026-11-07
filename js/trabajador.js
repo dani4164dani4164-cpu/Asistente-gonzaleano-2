@@ -6,7 +6,7 @@
 import * as db from './db.js';
 import { cargarAnalizador } from './analizadores/index.js';
 import { MODELO, FRAGMENTOS, LOTE, URL_TRANSFORMERS } from './config.js';
-import { fragmentar, hashPieza } from './motor/fragmentos.js';
+import { fragmentar, hashPieza, hashTexto } from './motor/fragmentos.js';
 import * as B from './motor/buscador.js';
 
 const avisar = m => self.postMessage(m);
@@ -82,6 +82,7 @@ async function procesar({ coleccion, analizador, documento, parrafos }) {
     p.coleccion = coleccion;
     p.orden = i;
     p.hash = await hashPieza(p);
+    p.hashTexto = await hashTexto(p);
   }
   const [previas, colPrevia, clavesFrag] = await Promise.all([
     db.todos('piezas', 'coleccion', coleccion),
@@ -90,17 +91,34 @@ async function procesar({ coleccion, analizador, documento, parrafos }) {
   ]);
   const hashPrevio = new Map(previas.map(p => [p.id, p.hash]));
   const cambioDeModelo = !!colPrevia && colPrevia.modelo !== MODELO.id;
-  const act = { nuevas: 0, modificadas: 0, sinCambios: 0, eliminadas: 0 };
+  const act = { nuevas: 0, modificadas: 0, sinCambios: 0, eliminadas: 0, renombradas: 0 };
   const rehacer = new Set();
+  const vigentes = new Set(piezas.map(p => p.id));
+  // Renombradas: ruta nueva, pero el mismo texto que una pieza que ya no está.
+  // Conservan sus fragmentos y embeddings; solo se actualiza la ruta.
+  const huerfanas = new Map();
+  for (const q of previas) if (!vigentes.has(q.id) && q.hashTexto && q.parrafos?.length) {
+    if (!huerfanas.has(q.hashTexto)) huerfanas.set(q.hashTexto, []);
+    huerfanas.get(q.hashTexto).push(q);
+  }
+  const renombres = [];                      // [{de, a}]
   for (const p of piezas) {
     const h = hashPrevio.get(p.id);
-    if (h === undefined) { act.nuevas++; rehacer.add(p.id); }
+    if (h === undefined) {
+      const q = !cambioDeModelo && p.parrafos.length && huerfanas.get(p.hashTexto)?.shift();
+      if (q) { act.renombradas++; renombres.push({ de: q.id, a: p }); }
+      else { act.nuevas++; rehacer.add(p.id); }
+    }
     else if (h !== p.hash) { act.modificadas++; rehacer.add(p.id); }
     else { act.sinCambios++; if (cambioDeModelo) rehacer.add(p.id); }
   }
-  const vigentes = new Set(piezas.map(p => p.id));
+  const renombradas = new Set(renombres.map(r => r.de));
   const eliminadas = previas.filter(p => !vigentes.has(p.id)).map(p => p.id);
-  act.eliminadas = eliminadas.length;
+  act.eliminadas = eliminadas.length - renombradas.size;
+  const movidos = [];                        // fragmentos de las renombradas, con su nueva ruta
+  for (const { de, a } of renombres)
+    for (const f of await db.todos('fragmentos', 'pieza', de))
+      movidos.push({ ...f, id: `${a.id}#${f.posicion}`, pieza: a.id, tipo: a.tipo, numero: a.numero });
   const piezaDeFrag = k => k.slice(0, k.lastIndexOf('#'));
   const fragsABorrar = clavesFrag.filter(k => rehacer.has(piezaDeFrag(k)) || !vigentes.has(piezaDeFrag(k)));
 
@@ -117,6 +135,7 @@ async function procesar({ coleccion, analizador, documento, parrafos }) {
     fragsABorrar.forEach(k => s.fragmentos.delete(k));
     piezas.forEach(p => s.piezas.put(p));
     nuevos.forEach(f => s.fragmentos.put(f));
+    movidos.forEach(f => s.fragmentos.put(f));
     s.colecciones.put({
       id: coleccion, documento, informe: infoFinal, modelo: MODELO.id,
       estado: 'indexando', actualizado: Date.now(),
@@ -196,7 +215,7 @@ async function buscar({ id, coleccion, analizador, consulta }) {
     const p = datos.porId.get(r.pieza);
     const corto = B.recortar(r.pasaje.texto, r.pasaje.intervalos || []);
     return {
-      pieza: r.pieza, tipoPieza: p.tipo, numero: p.numero, ...A.etiqueta(p), origen: r.origen,
+      pieza: r.pieza, tipoPieza: p.tipo, numero: p.numero, ...A.etiqueta(p), corta: A.corta ? A.corta(p) : null, origen: r.origen,
       extracto: corto,
       pasaje: { parrafoIni: r.pasaje.parrafoIni, parrafoFin: r.pasaje.parrafoFin, intervalos: r.pasaje.intervalos, desde: r.pasaje.desde },
     };
@@ -205,7 +224,17 @@ async function buscar({ id, coleccion, analizador, consulta }) {
   if (!datos.piezas.length) return avisar({ tipo: 'resultados', id, resultados: [], aviso: 'Todavía no hay documento: súbelo con 📎.' });
 
   // 1. Referencias: van directo a la pieza
-  const ref = A.parsearReferencia(consulta);
+  if (A.resolverReferencia) {
+    const r = A.resolverReferencia(consulta, datos.piezas.filter(p => !p.repetida));
+    if (r) {
+      const resultados = r.ids.map(id => datos.porId.get(id)).filter(Boolean).map(p => {
+        const idx = Math.max(0, p.parrafos.findIndex(t => !A.esMarca(t)));
+        return salida({ pieza: p.id, origen: 'referencia', pasaje: { parrafoIni: idx, parrafoFin: idx, texto: p.parrafos[idx] || p.titulo || '', intervalos: [] } });
+      });
+      return avisar({ tipo: 'resultados', id, resultados, referencia: true, aviso: r.mensaje || (resultados.length ? null : 'No encontré esa referencia en tu documento.') });
+    }
+  }
+  const ref = A.parsearReferencia ? A.parsearReferencia(consulta) : null;
   if (ref) {
     const reales = datos.piezas.filter(p => !p.repetida);
     let elegidas = [];

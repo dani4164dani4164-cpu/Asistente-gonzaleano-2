@@ -34,7 +34,8 @@ export function crearTablero() {
 
   return {
     /** Conjuntos (del informe guardado), fecha del documento y estado del índice */
-    coleccion({ conjuntos = null, fecha = null } = {}) {
+    coleccion({ etiqueta = 'Conjuntos', conjuntos = null, fecha = null } = {}) {
+      $('dEtiquetaCol').textContent = etiqueta;
       $('dConjuntos').textContent = conjuntos ?? '—';
       fechaDoc = fecha; pintarDoc();
     },
@@ -52,7 +53,7 @@ export function crearTablero() {
       acum += dT; if (acum <= 90) return; acum = 0;
       $('dEnergia').textContent = Math.round(S.energy * 100) + '%';
       [...barras.children].forEach((b, i) => b.style.height =
-        (8 + S.energy * (25 + 60 * Math.abs(Math.sin(S.T * .003 + i * .7)) * (.6 + .4 * Math.random())) * (S.mult / 1.5 + .33)) + '%');
+        Math.min(100, 8 + S.energy * (25 + 60 * Math.abs(Math.sin(S.T * .003 + i * .7)) * (.6 + .4 * Math.random())) * (S.mult / 1.5 + .33)) + '%');
     },
   };
 }

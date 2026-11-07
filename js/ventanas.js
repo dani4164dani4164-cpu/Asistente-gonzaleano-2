@@ -5,11 +5,20 @@
    - se mueven arrastrando su encabezado (⋮⋮), con dedo o mouse,
      sin salirse de la zona; la que se toca pasa al frente,
    - cada una tiene ✕; «Cerrar todas» cuando hay 2 o más,
-   - si la pieza ya está abierta, no se duplica: pasa al frente y destella.
+   - si la pieza ya está abierta, no se duplica: pasa al frente y destella,
+   - si la escena sabe invocar (Kyrien), primero forma el círculo mágico y
+     las ventanas nacen del hechizo (puntoDeHechizo); si no, de los anillos.
+   Cada asistente tiene su propio gestor y su propio contenedor: al cambiar
+   de asistente sus ventanas se guardan (ocultas) y vuelven al regresar.
    ============================================================ */
 import { escaparHtml, resaltarHtml } from './texto.js';
 
-export function crearVentanas({ zona, cont, escena, S, alVerCompleto, alCambiar }) {
+export function crearVentanas({ zona, cont, escena, S, tema = 'agios', enlazar = h => h, alVerCompleto, alCambiar, alEnlace = () => {} }) {
+  const esc = () => (typeof escena === 'function' ? escena() : escena);
+  cont.addEventListener('click', ev => {
+    const a = ev.target.closest('a.enlace');
+    if (a) { ev.preventDefault(); alEnlace(a); }
+  });
   let zSig = 10;
   const vivas = () => [...cont.querySelectorAll('.tarjeta:not(.cerrando)')];
   const avisar = () => alCambiar?.(vivas().map(t => ({ pieza: t.dataset.pieza, corta: t.dataset.corta })));
@@ -72,19 +81,24 @@ export function crearVentanas({ zona, cont, escena, S, alVerCompleto, alCambiar 
   function mostrar(lista) {
     let nuevas = 0;
     const repetidas = [];
+    const e0 = esc();
+    const porCrear = lista.filter(r => !vivas().some(t => t.dataset.pieza === r.pieza)).length;
+    const hechizo = porCrear > 0 && typeof e0?.invocar === 'function';
+    if (hechizo) e0.invocar();                    // el círculo mágico se forma primero
+    const espera = hechizo ? 1000 : 0;
     lista.forEach(r => {
       const ya = vivas().find(t => t.dataset.pieza === r.pieza);
       if (ya) { repetidas.push(ya); return; }
       const i = nuevas++;
       const t = document.createElement('div');
-      t.className = 'tarjeta';
+      t.className = 'tarjeta t-' + (r.tema || tema);
       t.style.zIndex = ++zSig;
       t.dataset.pieza = r.pieza;
       t.dataset.corta = r.corta;
       t.style.width = Math.min(zona.clientWidth * 0.84, 360) + 'px';
       t.innerHTML = `<div class="cab"><span class="agarre">⋮⋮</span><span class="ref">${escaparHtml(r.ref)}</span>` +
         `<span class="tipo">${escaparHtml(r.tipo)}</span><button class="x" type="button" title="Cerrar" aria-label="Cerrar">✕</button></div>` +
-        `<p>${resaltarHtml(r.extracto.texto, r.extracto.intervalos)}</p>` +
+        `<p>${enlazar(resaltarHtml(r.extracto.texto, r.extracto.intervalos), r.col)}</p>` +
         `<div class="pie"><span class="origen">${escaparHtml(r.origen || '')}</span><button type="button" class="ver">Ver completo</button></div>`;
       t.querySelector('.x').onclick = () => cerrar(t);
       t.querySelector('.ver').onclick = () => alVerCompleto(r);
@@ -97,7 +111,8 @@ export function crearVentanas({ zona, cont, escena, S, alVerCompleto, alCambiar 
       // Una partícula se desprende de un anillo y viaja hasta donde nacerá la ventana
       setTimeout(() => {
         if (!t.isConnected) return;
-        const o = escena.puntoDeAnillo(i, S.T * 0.001 + i * 2.1);
+        const e1 = esc();
+        const o = hechizo ? e1.puntoDeHechizo(i, porCrear) : e1.puntoDeAnillo(i, S.T * 0.001 + i * 2.1);
         const dx = t.offsetLeft + t.offsetWidth / 2, dy = t.offsetTop + t.offsetHeight / 2;
         const ch = document.createElement('div'); ch.className = 'chispa'; zona.append(ch);
         ch.animate([{ left: o.x + 'px', top: o.y + 'px', transform: 'scale(1)' },
@@ -105,7 +120,7 @@ export function crearVentanas({ zona, cont, escena, S, alVerCompleto, alCambiar 
           { left: dx + 'px', top: dy + 'px', transform: 'scale(2.2)' }],
         { duration: 700, easing: 'cubic-bezier(.5,0,.3,1)', fill: 'forwards' })
           .onfinish = () => { ch.remove(); t.classList.add('visible'); avisar(); };
-      }, i * 260);
+      }, espera + i * 260);
     });
     // Las que ya estaban abiertas no se duplican: pasan al frente (encima de
     // las nuevas, en el orden de los resultados) y destellan.

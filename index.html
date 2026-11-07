@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#07070d">
-<meta name="description" content="Anesthios: asistentes gonzaleanos. Agios localiza, busca y lee las Lecturas, Salmos y Evangelios Gonzaleanos de tu documento, en tu dispositivo.">
+<meta name="description" content="Anesthios: asistentes gonzaleanos. Agios (Lecturas y Evangelios) y Kyrien (Doctrina Gonzaleana) localizan, buscan y leen tus documentos, en tu dispositivo.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -17,45 +17,81 @@
 <link rel="preload" href="./fuentes/jetbrains-mono-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="./css/fuentes.css">
 <link rel="stylesheet" href="./css/estilos.css">
+<link rel="stylesheet" href="./css/kyrien.css">
+<link rel="stylesheet" href="./css/menu.css">
 <script type="importmap">
 {"imports":{
   "three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
   "jszip":"https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm"
 }}
 </script>
+<script>
+/* Antes de pintar: ¿se abre en el menú o en el último asistente? (sin parpadeo) */
+(function () {
+  var c = 'tema-menu';
+  try {
+    if (localStorage.getItem('anesthios.inicio') === 'ultimo')
+      c = 'tema-' + (localStorage.getItem('anesthios.tema') || 'agios').replace(/[^a-z]/g, '');
+  } catch (e) {}
+  document.documentElement.dataset.inicio = c;
+})();
+</script>
 </head>
-<body>
+<body class="tema-menu">
+<script>document.body.className = document.documentElement.dataset.inicio;</script>
+<!-- Fondos de cada mundo, que se funden entre sí -->
+<div class="mundo agios"></div><div class="mundo kyrien"></div>
+
+<!-- Menú de inicio: la nebulosa -->
+<div id="cielo"></div>
+<div id="menu">
+  <h1>ANESTHIOS</h1>
+  <div class="lema">Asistentes Gonzaleanos</div>
+  <div class="orbes" id="orbes"></div>
+  <div class="lema2">ELIGE UN ASISTENTE</div>
+</div>
 
 <header class="barra-sup">
-  <div class="marca">ANESTHIOS<small>ASISTENTES GONZALEANOS</small></div>
+  <button class="marca" id="aInicio" type="button" title="Volver al inicio" aria-label="Volver al inicio">
+    <span class="v t-agios">ANESTHIOS<small>ASISTENTES GONZALEANOS</small></span>
+    <span class="v t-kyrien">ANESTHIOS<small>Asistentes Gonzaleanos</small></span>
+  </button>
   <div class="esp"></div>
   <div class="chip-estado" id="chip"><i></i><span id="estado">apagado</span></div>
   <button id="btnMenu" class="boton-menu" type="button" title="Menú" aria-label="Menú">☰</button>
 </header>
-<div class="regla"></div>
+<div class="reglas"><div class="regla t-agios"></div><div class="regla t-kyrien">✦</div></div>
+<div class="selector" id="selector" role="tablist" aria-label="Asistente"></div>
 
 <div id="zona">
-  <div class="fondo"></div>
-  <div class="reticula">
-    <div class="aro"></div><div class="aro b"></div><div class="aro c"></div>
-    <div class="eje h"></div><div class="eje v"></div>
-    <span class="grado" style="left:50%;top:-5%;transform:translateX(-50%)">000</span>
-    <span class="grado" style="right:-7%;top:50%;transform:translateY(-50%)">090</span>
-    <span class="grado" style="left:50%;bottom:-5%;transform:translateX(-50%)">180</span>
-    <span class="grado" style="left:-7%;top:50%;transform:translateY(-50%)">270</span>
+  <!-- Decoración de Agios: fondo de puntos, retícula y esquinas -->
+  <div class="decor t-agios">
+    <div class="fondo"></div>
+    <div class="reticula">
+      <div class="aro"></div><div class="aro b"></div><div class="aro c"></div>
+      <div class="eje h"></div><div class="eje v"></div>
+      <span class="grado" style="left:50%;top:-5%;transform:translateX(-50%)">000</span>
+      <span class="grado" style="right:-7%;top:50%;transform:translateY(-50%)">090</span>
+      <span class="grado" style="left:50%;bottom:-5%;transform:translateX(-50%)">180</span>
+      <span class="grado" style="left:-7%;top:50%;transform:translateY(-50%)">270</span>
+    </div>
+    <div class="esquina a"></div><div class="esquina b"></div><div class="esquina c"></div><div class="esquina d"></div>
   </div>
-  <div id="stage"></div>
-  <div class="esquina a"></div><div class="esquina b"></div><div class="esquina c"></div><div class="esquina d"></div>
+  <!-- Decoración de Kyrien: esfera de numerales romanos y esquinas con filigrana -->
+  <div class="decor t-kyrien">
+    <div class="esfera"><div class="aro"></div><div class="aro b"></div><div class="numerales" id="numerales"></div></div>
+    <div class="filigrana a"></div><div class="filigrana b"></div><div class="filigrana c"></div><div class="filigrana d"></div>
+  </div>
 
-  <div class="titulo-col apagado" id="tituloCol">
-    <h2 id="nombreAsistente">AGIOS</h2>
-    <div class="sub" id="subtituloAsistente">LECTURAS Y EVANGELIOS</div>
-    <div id="hint" role="status" aria-live="polite"></div>
-  </div>
+  <div id="stage"></div>
+  <div id="fogonazo"></div>
+
+  <div class="titulos" id="titulos"></div>
+  <div id="hint" role="status" aria-live="polite"></div>
 
   <div class="panel-dato izq" id="panelColeccion">
     <h3>COLECCIÓN</h3>
-    <div class="f"><span>Conjuntos</span><b id="dConjuntos">—</b></div>
+    <div class="f"><span id="dEtiquetaCol">Conjuntos</span><b id="dConjuntos">—</b></div>
     <div class="f"><span>Abiertas</span><b id="dAbiertas">0</b></div>
     <div class="abiertas" id="dLista">—</div>
     <div class="f"><span>Índice</span><b id="dIndice">sin documento</b></div>
@@ -72,7 +108,7 @@
   <div id="resultados"></div>
   <div id="subir">
     <h4>SUBIR ARCHIVO</h4>
-    <p id="subirTexto">Elige el .docx de Lecturas y Evangelios Gonzaleanos</p>
+    <p id="subirTexto">Elige el .docx</p>
     <div style="display:flex;gap:8px">
       <button id="cancelarSubir" type="button" style="flex:1">Cancelar</button>
       <button id="elegir" class="prim" type="button" style="flex:1.4">Elegir archivo</button>
@@ -89,12 +125,12 @@
   </div>
   <div class="entrada">
     <button id="btnSubir" class="icono" type="button" title="Subir archivo" aria-label="Subir archivo" disabled>📎</button>
-    <label class="campo"><span>›</span><input id="consulta" placeholder="Toca a Agios para encenderlo" autocomplete="off" enterkeyhint="search" disabled></label>
+    <label class="campo"><span class="t-agios">›</span><span class="t-kyrien">✦</span><input id="consulta" placeholder="" autocomplete="off" enterkeyhint="search" disabled></label>
     <button id="btnBuscar" class="icono prim" type="submit" title="Buscar" aria-label="Buscar" disabled>➤</button>
   </div>
 </form>
 
-<div id="lector" role="dialog" aria-modal="true" aria-labelledby="lectorTitulo">
+<div id="lector" role="dialog" aria-modal="true" aria-labelledby="lectorTitulo" data-tema="agios">
   <header class="cab">
     <span id="lectorTitulo"></span>
     <button id="cerrarLector" type="button">Cerrar</button>

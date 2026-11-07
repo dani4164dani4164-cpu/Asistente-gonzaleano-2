@@ -155,6 +155,10 @@ prueba('Normalización con mapa: posiciones del texto original', () => {
 });
 
 /* ---------- Informe ---------- */
+/* ---------- Kyrien: Doctrina Gonzaleana (lee un .docx ficticio en el navegador) ---------- */
+try { await (await import('./pruebas-doctrina.js')).correr(prueba, igual, verdad); }
+catch (e) { resultados.push({ nombre: 'Doctrina: preparar el documento ficticio', ok: false, error: e.stack || e.message }); }
+
 const fallos = resultados.filter(r => !r.ok);
 const lista = document.getElementById('lista');
 lista.innerHTML = resultados.map(r => `<li class="${r.ok ? 'ok' : 'mal'}">${r.ok ? '✔' : '✘'} ${r.nombre}${r.ok ? '' : `<pre>${r.error.replace(/</g, '&lt;')}</pre>`}</li>`).join('');

@@ -1,39 +1,37 @@
 /* ============================================================
-   Prueba de extremo a extremo de Anesthios con Playwright + Chromium.
-   Solo para desarrollo (la app no necesita nada de esto).
+   Prueba de extremo a extremo de Anesthios (Agios + Kyrien) con
+   Playwright + Chromium. Solo para desarrollo.
 
    Uso:
      ESPEJO=/ruta/espejo SALIDA=/ruta/capturas JSZIP=/ruta/jszip.min.js \
-       [VERSION_ANTERIOR=7fb3874] node pruebas/e2e/e2e.mjs
+       [VERSION_ANTERIOR=1db3790] node pruebas/e2e/e2e.mjs
    ESPEJO (opcional): espejo local de jsDelivr y Hugging Face hecho con
    preparar-espejo.sh; sin él se usa la red real.
-   VERSION_ANTERIOR: commit de la versión publicada antes (Agios) para la
-   prueba de actualización sin pérdida de datos. Por omisión, 7fb3874
-   (main antes de Anesthios).
+   VERSION_ANTERIOR: commit publicado antes (Anesthios con solo Agios)
+   para la prueba de actualización sin pérdida de datos.
 
-   Recorre:
-   A. Actualización sin pérdida de datos: la versión anterior procesa el
-      documento; se publica la nueva en el mismo origen (service worker
-      actualizado) y, SIN subir nada, siguen funcionando estructura,
-      búsquedas, lector y paneles («Documento» con la fecha guardada).
-   B. Interfaz Anesthios: nombre, título del asistente, paneles reales,
-      ventanas (✕, cerrar todas, acumular, mover, no duplicar),
-      sugerencias recientes, apagar cierra todo, subir no cierra.
-   C. Lo de siempre: pruebas unitarias, errores (luz roja), procesamiento
-      con interrupción y reanudación, Estructura detectada, búsqueda
-      exacta y por significado, lector e índice, actualización
-      incremental, menú, sin conexión, borrado y privacidad.
-   D. Capturas en celular y tableta (vertical y horizontal) junto a las
-      del prototipo para comparar.
+   A. Actualización sin perder los datos de Agios (punto 0)
+   B. Menú nebulosa: orbes, entrar, volver, ventanas restauradas,
+      tercera colección ficticia como orbe, sin WebGL 2
+   C. Kyrien: errores, procesamiento con el hechizo rearmándose al ritmo
+      del avance, interrupción y reanudación, Estructura detectada,
+      referencias, búsqueda exacta y por significado, ventanas que nacen
+      del hechizo, enlaces a Agios y a Logos, lector e índice en árbol,
+      inserciones en medio (solo 3 piezas), renombrada
+   D. Transición: implosión, estallido y al azar; ajustes guardados;
+      ventanas por asistente; la escena oculta no se dibuja
+   E. Agios: ventanas (acumular, mover, no duplicar) siguen funcionando
+   F. Sin conexión, privacidad, consola, capturas vs prototipos
    ============================================================ */
 import { createRequire } from 'node:module';
-import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { iniciar } from './servidores.mjs';
 import { generarDocumento, TEMAS } from '../generador.js';
+import { generarDoctrina } from '../generador-doctrina.js';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT || 'playwright');
@@ -42,7 +40,7 @@ const JSZip = require(process.env.JSZIP || 'jszip');
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const ESPEJO = process.env.ESPEJO || null;
 const SALIDA = process.env.SALIDA || path.join(RAIZ, 'pruebas/e2e/salida');
-const VERSION_ANTERIOR = process.env.VERSION_ANTERIOR || '7fb3874';
+const VERSION_ANTERIOR = process.env.VERSION_ANTERIOR || '1db3790';
 mkdirSync(SALIDA, { recursive: true });
 const URL_APP = 'http://localhost:8080/';
 
@@ -51,41 +49,46 @@ let fallos = 0;
 const paso = async (nombre, fn) => {
   const t0 = Date.now();
   try { const detalle = await fn(); informe.push({ nombre, ok: true, ms: Date.now() - t0, detalle }); console.log('✔', nombre, detalle ? JSON.stringify(detalle) : ''); }
-  catch (e) { fallos++; informe.push({ nombre, ok: false, error: e.message }); console.log('✘', nombre, '\n   ', e.message); }
+  catch (e) { fallos++; informe.push({ nombre, ok: false, error: e.message }); console.log('✘', nombre, '\n   ', e.message.split('\n')[0]); await captura('FALLO-' + nombre.slice(0, 3).replace(/\W/g, '')).catch(() => {}); }
 };
 const verdad = (c, m) => { if (!c) throw new Error(m); };
 
 // Documentos de prueba (texto inventado)
-const docV1 = Buffer.from(await generarDocumento(JSZip));
-const docV2 = Buffer.from(await generarDocumento(JSZip, { conjuntos: 372, modificar: [{ tipo: 'lectura', numero: 12 }, { tipo: 'evangelio', numero: 300 }] }));
-const docSin = Buffer.from(await generarDocumento(JSZip, { sinEstructura: true }));
 const MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const lectV1 = Buffer.from(await generarDocumento(JSZip));
+const docV1 = Buffer.from(await generarDoctrina(JSZip));
+const docV2 = Buffer.from(await generarDoctrina(JSZip, { insertarCristologia: true, insertarCronica: true, modificarLogos: true }));
+const docV3 = Buffer.from(await generarDoctrina(JSZip, { insertarCristologia: true, insertarCronica: true, modificarLogos: true, renombrarCronica: true }));
 
-// La versión anterior, tal cual está en git
 const DIR_ANTERIOR = mkdtempSync(path.join(os.tmpdir(), 'anesthios-anterior-'));
 execSync(`git -C "${RAIZ}" archive ${VERSION_ANTERIOR} | tar -x -C "${DIR_ANTERIOR}"`);
 
 let srv = await iniciar({ raizApp: DIR_ANTERIOR, espejo: ESPEJO });
 const env = { ...process.env }; for (const k of Object.keys(env)) if (/proxy/i.test(k)) delete env[k];
-const args = ESPEJO ? ['--host-resolver-rules=MAP cdn.jsdelivr.net 127.0.0.1,MAP huggingface.co 127.0.0.1', '--ignore-certificate-errors', '--no-proxy-server'] : [];
-const browser = await chromium.launch({ env, args });
-const ctx = await browser.newContext({ ignoreHTTPSErrors: !!ESPEJO, viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true });
-const page = await ctx.newPage();
+const ARGS = ESPEJO ? ['--host-resolver-rules=MAP cdn.jsdelivr.net 127.0.0.1,MAP huggingface.co 127.0.0.1', '--ignore-certificate-errors', '--no-proxy-server'] : [];
+const browser = await chromium.launch({ env, args: ARGS });
+// Densidad 1: Chromium sin GPU dibuja por software; con 2 cada cuadro cuesta 4 veces más
+// y las animaciones (que avanzan como máximo 50 ms por cuadro) se estiran en tiempo real.
+const ctx = await browser.newContext({ ignoreHTTPSErrors: !!ESPEJO, viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, hasTouch: true });
+let page = await ctx.newPage();
 const peticiones = [];
 ctx.on('request', r => peticiones.push({ url: r.url(), metodo: r.method(), cuerpo: r.postData() }));
 const errores = [];
-page.on('pageerror', e => errores.push(e.message));
-page.on('console', m => { if (m.type() === 'error') errores.push(m.text()); });
-page.on('dialog', d => d.accept());
-let cargas = 0; page.on('load', () => { cargas++; });
+const vigilar = p => {
+  p.on('pageerror', e => errores.push(e.message));
+  p.on('console', m => { if (m.type() === 'error') errores.push(m.text()); });
+  p.on('dialog', d => d.accept());
+};
+vigilar(page);
 
-const captura = nombre => page.screenshot({ path: path.join(SALIDA, nombre + '.png') });
-const modo = () => page.evaluate(() => window.__agios.modo);
+const captura = (nombre, p = page) => p.screenshot({ path: path.join(SALIDA, nombre + '.png') });
+const g = (expr) => page.evaluate(expr);
+const modo = () => g(() => window.__agios.modo);
 const estado = () => page.locator('#estado').textContent();
 const texto = sel => page.locator(sel).textContent();
 const esperarModo = (m, timeout = 60000) => page.waitForFunction(x => window.__agios?.modo === x, m, { timeout, polling: 50 });
-/** Toca a Agios en un punto visible del modelo (no tapado por ventanas). */
-async function tocarAgios() {
+const listo = () => page.waitForFunction(() => window.__agios, null, { timeout: 60000 });
+async function tocar() {
   const p = await page.evaluate(() => {
     const st = document.getElementById('stage').getBoundingClientRect();
     const cx = st.left + st.width / 2, cy = st.top + st.height * 0.5;
@@ -98,40 +101,44 @@ async function tocarAgios() {
   });
   await page.mouse.click(p.x, p.y);
 }
-/** Cierra con su ✕ la ventana indicada (aunque otra en cascada la tape en parte). */
-const cerrarVentana = corta => page.$eval(`.tarjeta[data-corta="${corta}"]:not(.cerrando) .x`, b => b.click());
-/** «Ver completo» de la ventana n (aunque otra la tape en parte). */
-const verCompleto = (n = 0) => page.$$eval('.tarjeta:not(.cerrando) .ver', (bs, i) => bs[i].click(), n);
-async function abrirApp() {
-  await page.goto(URL_APP);
-  await page.waitForFunction(() => window.__agios, null, { timeout: 60000 });
+async function encender() { if (await modo() === 'apagado') await tocar(); await esperarModo('activo'); }
+async function entrarA(col) {
+  await page.click(`.orbe[data-col="${col}"]`);
+  await page.waitForFunction(c => !window.__agios.viaje && window.__agios.activa === c && !window.__agios.enMenu, col, { timeout: 150000, polling: 100 });
 }
-async function encender() {
-  if (await modo() === 'apagado') { await tocarAgios(); }
-  await esperarModo('activo');
+async function cambiarA(col) {
+  await page.click(`#selector button[data-col="${col}"]`);
+  await page.waitForFunction(() => !!window.__agios.cambio, null, { timeout: 5000, polling: 20 });
+  const c = await g(() => window.__agios.cambio);
+  await page.waitForFunction(x => !window.__agios.cambio && window.__agios.activa === x, col, { timeout: 120000, polling: 100 });
+  return c;
+}
+async function volverAlMenu() {
+  await page.click('#aInicio');
+  await page.waitForFunction(() => !window.__agios.viaje && window.__agios.enMenu, null, { timeout: 120000, polling: 100 });
 }
 async function subir(nombre, buffer, mimeType = MIME) {
   if (await page.locator('#hoja.abierta').count()) await page.click('#cerrarHoja');
   await esperarModo('activo');
   await page.click('#btnSubir');
   await page.waitForSelector('#subir.abierta');
-  await page.waitForFunction(() => window.__agios.meta.apertura === 1);
   await page.setInputFiles('#archivo', { name: nombre, mimeType, buffer });
 }
-const vivas = () => page.$$eval('.tarjeta:not(.cerrando)', ts => ts.map(t => ({
+const VIS = '.resultados-col:not([hidden]) .tarjeta:not(.cerrando)';
+const vivas = () => page.$$eval(VIS, ts => ts.map(t => ({
   pieza: t.dataset.pieza, corta: t.dataset.corta, ref: t.querySelector('.ref').textContent, tipo: t.querySelector('.tipo').textContent,
-  texto: t.querySelector('p').textContent, marcado: [...t.querySelectorAll('mark')].map(m => m.textContent),
+  texto: t.querySelector('p').textContent, marcado: [...t.querySelectorAll('mark')].map(m => m.textContent), enlaces: t.querySelectorAll('a.enlace').length,
   origen: t.querySelector('.origen')?.textContent || '', z: +t.style.zIndex, x: t.offsetLeft, y: t.offsetTop, w: t.offsetWidth, h: t.offsetHeight,
-  visible: t.classList.contains('visible'), destella: t.classList.contains('destella'),
+  tema: t.classList.contains('t-kyrien') ? 'kyrien' : 'agios', visible: t.classList.contains('visible'), destella: t.classList.contains('destella'),
 })));
-const esperarSinVentanas = () => page.waitForFunction(() => !document.querySelector('.tarjeta'), null, { timeout: 5000 });
 async function cerrarVentanas() {
   const n = (await vivas()).length;
   if (n > 1) await page.click('#cerrarTodas');
-  else if (n === 1) await page.click('.tarjeta .x');
-  if (n) await esperarSinVentanas();
+  else if (n === 1) await page.$eval(VIS + ' .x', b => b.click());
+  if (n) await page.waitForFunction(() => !document.querySelector('.resultados-col:not([hidden]) .tarjeta'), null, { timeout: 5000 });
 }
-/** Busca (por omisión cerrando antes las ventanas abiertas) y devuelve las ventanas NUEVAS en orden. */
+const cerrarVentana = corta => page.$eval(`.resultados-col:not([hidden]) .tarjeta[data-corta="${corta}"]:not(.cerrando) .x`, b => b.click());
+const verCompleto = (n = 0) => page.$$eval(VIS + ' .ver', (bs, i) => bs[i].click(), n);
 async function buscar(q, { acumular = false } = {}) {
   await esperarModo('activo');
   if (!acumular) await cerrarVentanas();
@@ -139,516 +146,549 @@ async function buscar(q, { acumular = false } = {}) {
   await page.fill('#consulta', q);
   await page.click('#btnBuscar');
   await page.waitForFunction(() => window.__agios.modo === 'buscando', null, { timeout: 5000, polling: 20 }).catch(() => {});
-  const mult = await page.evaluate(() => window.__agios.meta.mult);
+  const mult = await g(() => window.__agios.meta.mult);
   await esperarModo('activo', 120000);
-  await page.waitForFunction(() => [...document.querySelectorAll('.tarjeta:not(.cerrando)')].every(t => t.classList.contains('visible')), null, { timeout: 10000 });
+  const tFin = Date.now();
+  let tVisible = null;
+  const hay = await page.locator(VIS).count();
+  if (hay > antes.size) {
+    await page.waitForFunction(n => document.querySelectorAll('.resultados-col:not([hidden]) .tarjeta.visible').length > n, antes.size, { timeout: 10000, polling: 20 });
+    tVisible = Date.now() - tFin;
+  }
+  await page.waitForFunction(() => [...document.querySelectorAll('.resultados-col:not([hidden]) .tarjeta:not(.cerrando)')].every(t => t.classList.contains('visible')), null, { timeout: 15000 });
   const todas = await vivas();
-  return { tarjetas: todas.filter(t => !antes.has(t.pieza)), todas, mult, pista: await texto('#hint'), estado: await estado() };
+  return { tarjetas: todas.filter(t => !antes.has(t.pieza)), todas, mult, tVisible, pista: await texto('#hint'), estado: await estado() };
 }
-const contarPend = () => page.evaluate(() => new Promise(ok => {
-  const r = indexedDB.open('agios'); r.onsuccess = () => { const q = r.result.transaction('fragmentos').objectStore('fragmentos').index('pend').count(); q.onsuccess = () => ok(q.result); };
-}));
-const huellaDatos = () => page.evaluate(() => new Promise(ok => {
+const huella = col => page.evaluate(c => new Promise(ok => {
   const r = indexedDB.open('agios');
   r.onsuccess = () => {
-    const db = r.result, tx = db.transaction(['colecciones', 'piezas', 'fragmentos']), out = { version: db.version };
-    tx.objectStore('piezas').count().onsuccess = e => { out.piezas = e.target.result; };
-    tx.objectStore('fragmentos').count().onsuccess = e => { out.fragmentos = e.target.result; };
-    tx.objectStore('fragmentos').index('pend').count().onsuccess = e => { out.pendientes = e.target.result; };
-    tx.objectStore('colecciones').get('lecturas').onsuccess = e => { const c = e.target.result; out.actualizado = c?.actualizado; out.conjuntos = c?.informe?.datos?.conjuntos; out.documento = c?.documento?.nombre; };
-    tx.oncomplete = () => ok(out);
+    const db = r.result, tx = db.transaction(['colecciones', 'piezas', 'fragmentos']), out = { version: db.version, almacenes: [...db.objectStoreNames] };
+    tx.objectStore('piezas').index('coleccion').count(c).onsuccess = e => { out.piezas = e.target.result; };
+    tx.objectStore('fragmentos').index('coleccion').count(c).onsuccess = e => { out.fragmentos = e.target.result; };
+    tx.objectStore('fragmentos').index('pend').count(c).onsuccess = e => { out.pendientes = e.target.result; };
+    tx.objectStore('colecciones').get(c).onsuccess = e => { const x = e.target.result; out.actualizado = x?.actualizado; out.conjuntos = x?.informe?.datos?.conjuntos; out.bloques = x?.informe?.datos?.bloques; };
+    tx.oncomplete = () => { db.close(); ok(out); };
   };
-}));
+}), col);
+const vectoresDe = (col) => page.evaluate(c => new Promise(ok => {
+  const r = indexedDB.open('agios');
+  r.onsuccess = () => {
+    const q = r.result.transaction('fragmentos').objectStore('fragmentos').index('coleccion').getAll(c);
+    q.onsuccess = () => { const m = {}; for (const f of q.result) m[f.id] = f.vector ? Array.from(f.vector.slice(0, 4)).join(',') : null; r.result.close(); ok(m); };
+  };
+}), col);
 const temaDeTexto = t => Object.entries(TEMAS).find(([, frases]) => frases.some(f => t.includes(f.slice(0, 30))))?.[0];
+async function ajuste(nombre, valor) {
+  await page.click('#btnMenu'); await page.waitForSelector('#hoja.abierta .ajustes');
+  await page.check(`.ajustes input[name="${nombre}"][value="${valor}"]`);
+  await page.click('#cerrarHoja');
+}
 
 /* ================================================================
-   A. ACTUALIZACIÓN SIN PÉRDIDA DE DATOS (punto 0)
+   A. ACTUALIZACIÓN SIN PERDER LOS DATOS DE AGIOS (punto 0)
    ================================================================ */
 let huellaAntes = null, registroAlCambiar = 0;
-await paso(`A1. Versión anterior (${VERSION_ANTERIOR}): procesar el documento de prueba`, async () => {
-  await abrirApp();
-  verdad(!(await page.$('.titulo-col')), 'debía ser la versión anterior');
-  await tocarAgios(); await esperarModo('activo');
-  await subir('FICTICIO-documento-de-prueba.docx', docV1);
+await paso(`A1. Versión anterior (${VERSION_ANTERIOR}): procesar las Lecturas de prueba`, async () => {
+  await page.goto(URL_APP); await listo();
+  verdad(!(await page.$('#orbes')), 'debía ser la versión anterior (sin menú)');
+  await tocar(); await esperarModo('activo');
+  await subir('FICTICIO-documento-de-prueba.docx', lectV1);
   await esperarModo('procesando', 10000);
   await page.waitForFunction(() => window.__agios.modo !== 'procesando', null, { timeout: 900000, polling: 200 });
   await page.waitForFunction(() => window.__agios.modo === 'activo', null, { timeout: 10000 });
   if (await page.locator('#hoja.abierta').count()) await page.click('#cerrarHoja');
-  huellaAntes = await huellaDatos();
-  await captura('A1-version-anterior-procesada');
+  await page.fill('#consulta', 'Lect. Gonz. 23'); await page.click('#btnBuscar');
+  await page.waitForTimeout(2500);
+  huellaAntes = await huella('lecturas');
+  await captura('A1-version-anterior');
   verdad(huellaAntes.piezas === 1108 && huellaAntes.pendientes === 0 && huellaAntes.conjuntos === 371, JSON.stringify(huellaAntes));
   return huellaAntes;
 });
 
-await paso('A2. Se publica Anesthios en el mismo origen: el service worker se actualiza', async () => {
-  // La versión anterior ya está instalada y controlando la página.
-  await page.reload(); await page.waitForFunction(() => window.__agios, null, { timeout: 60000 });
-  verdad(await page.evaluate(() => !!navigator.serviceWorker.controller), 'la versión anterior no tenía service worker activo');
+await paso('A2. Se publica la versión nueva en el mismo origen: el service worker se actualiza solo', async () => {
+  await page.reload(); await listo();
+  verdad(await g(() => !!navigator.serviceWorker.controller), 'la versión anterior no tenía service worker activo');
   srv.cambiarRaiz(RAIZ);
   registroAlCambiar = srv.registro.length;
-  // El usuario abre la app: se ve todavía la versión anterior (desde su caché) y el
-  // navegador, por su cuenta, descubre e instala el service worker nuevo.
   const t0 = Date.now();
-  await page.reload(); await page.waitForFunction(() => window.__agios, null, { timeout: 60000 });
-  verdad(!(await page.$('.titulo-col')), 'esperaba aún la versión anterior');
-  // Instalada Y activada: la caché nueva existe y la anterior de la APP ya se borró.
-  // El navegador comprueba por su cuenta si hay service worker nuevo (con demora
-  // variable). Si en 90 s no lo hizo, se le pide la misma comprobación que hace
-  // en su ciclo normal (registration.update()); el informe dice cuál ocurrió.
-  let forzada = false;
+  await page.reload(); await listo();                 // el usuario abre la app: aún la anterior
+  let forzada = false, recargoSola = false;
   for (let k = 0; ; k++) {
-    const c = await page.evaluate(() => caches.keys());
-    if (c.includes('agios-app-v2') && !c.includes('agios-app-v1')) break;
-    if (k === 90) { forzada = true; await page.evaluate(() => navigator.serviceWorker.getRegistration().then(r => r.update())); }
-    verdad(k < 240, 'el service worker nuevo no se activó: ' + c + ' · peticiones de sw.js: ' +
-      srv.registro.slice(registroAlCambiar).filter(r => r.ruta === '/sw.js').length);
+    if (await page.$('#orbes').catch(() => null)) { recargoSola = true; break; }
+    const c = await page.evaluate(() => caches.keys()).catch(() => []);
+    if (c.includes('agios-app-v3') && !c.includes('agios-app-v2') && k > 5) break;
+    if (k === 90) { forzada = true; await page.evaluate(() => navigator.serviceWorker.getRegistration().then(r => r.update())).catch(() => {}); }
+    verdad(k < 240, 'la versión nueva no se activó: ' + c);
     await page.waitForTimeout(1000);
   }
-  const segundos = Math.round((Date.now() - t0) / 1000);
-  // La siguiente vez que abre la app, ya es Anesthios.
-  await page.reload(); await page.waitForFunction(() => window.__agios, null, { timeout: 60000 });
-  const intentos = segundos;
-  verdad(await page.$('.titulo-col'), 'la versión nueva no llegó');
+  if (!recargoSola) { await page.reload(); }
+  await listo();
+  await page.waitForSelector('#orbes .orbe', { timeout: 30000 });
   const cachés = await page.evaluate(() => caches.keys());
-  verdad(cachés.includes('agios-app-v2') && !cachés.includes('agios-app-v1'), 'cachés de la app: ' + cachés);
-  verdad(cachés.includes('transformers-cache'), 'se perdió la caché del modelo: ' + cachés);
-  verdad(cachés.includes('agios-cdn-v1'), 'se perdió la caché de librerías: ' + cachés);
-  return { segundosHastaActivarse: intentos, comprobacion: forzada ? 'registration.update()' : 'automática del navegador', cachés };
+  verdad(cachés.includes('agios-app-v3') && !cachés.some(k => /agios-app-v[12]$/.test(k)), 'cachés de la app: ' + cachés);
+  verdad(cachés.includes('transformers-cache') && cachés.includes('agios-cdn-v1'), 'se perdió una caché que debía conservarse: ' + cachés);
+  return { segundos: Math.round((Date.now() - t0) / 1000), recargoSola, comprobacion: forzada ? 'registration.update()' : 'automática', cachés };
 });
 
-await paso('A3. Sin subir nada: los datos siguen ahí, intactos', async () => {
-  const h = await huellaDatos();
-  verdad(JSON.stringify(h) === JSON.stringify(huellaAntes), `antes ${JSON.stringify(huellaAntes)} · después ${JSON.stringify(h)}`);
-  await encender();
+await paso('A3. Sin subir nada: los datos de Agios siguen intactos y Agios funciona', async () => {
+  const h = await huella('lecturas');
+  verdad(JSON.stringify({ ...h, almacenes: undefined }) === JSON.stringify({ ...huellaAntes, almacenes: undefined }), `antes ${JSON.stringify(huellaAntes)} · después ${JSON.stringify(h)}`);
+  verdad(h.version === 1, 'cambió la versión de IndexedDB: ' + h.version);
+  verdad(await g(() => window.__agios.enMenu), 'debía abrir en el menú');
+  await captura('A3a-menu-tras-actualizar');
+  await entrarA('lecturas');
   await page.waitForTimeout(800);
-  const panel = { conjuntos: await texto('#dConjuntos'), indice: await texto('#dIndice'), documento: await texto('#dDoc'), hora: await texto('#dHora') };
-  await captura('A3-anesthios-con-datos-anteriores');
-  verdad(panel.conjuntos === '371', 'Conjuntos: ' + panel.conjuntos);
-  verdad(panel.indice === '● listo', 'Índice: ' + panel.indice);
-  verdad(/^(ahora|hace \d+ min|hoy \d)/.test(panel.documento), 'Documento: ' + panel.documento);
-  verdad(await modo() === 'activo' && !(await page.locator('#hoja.abierta').count()), 'no debía reprocesar nada');
-  return { ...h, panel };
-});
-
-await paso('A4. Sin subir nada: estructura, búsqueda exacta, por significado y lector', async () => {
+  const panel = { conjuntos: await texto('#dConjuntos'), indice: await texto('#dIndice'), documento: await texto('#dDoc') };
+  verdad(panel.conjuntos === '371' && panel.indice === '● listo' && /^(ahora|hace \d+ min|hoy \d)/.test(panel.documento), JSON.stringify(panel));
+  verdad(!(await page.locator('#hoja.abierta').count()) && await modo() === 'activo', 'no debía reprocesar nada');
   await page.click('#btnMenu'); await page.waitForSelector('#hoja.abierta');
-  await page.click('button[data-accion="estructura"]');
-  await page.waitForFunction(() => document.getElementById('hojaTitulo').textContent === 'Estructura detectada');
+  await page.click('.doc[data-col="lecturas"] button[data-accion="estructura"]');
   const t = await texto('#hojaContenido');
-  verdad(t.includes('371Conjuntos') && t.includes('365Santos Evangelios') && t.includes('89–94 (6)'), t.slice(0, 200));
+  verdad(t.includes('371Conjuntos') && t.includes('89–94 (6)'), t.slice(0, 200));
   await page.click('#cerrarHoja');
   const a = await buscar('Lect. Gonz. 145');
   verdad(a.tarjetas[0]?.ref === 'Lect. Gonz. 145', 'exacta: ' + a.tarjetas[0]?.ref);
   const b = await buscar('hombres que lanzan mallas desde un bote para capturar pescado');
   verdad(temaDeTexto(b.tarjetas[0]?.texto || '') === 'mar' && /significado/.test(b.tarjetas[0].origen), 'significado: ' + JSON.stringify(b.tarjetas[0]));
-  await verCompleto(0);
-  await page.waitForSelector('#lector.abierto');
+  await verCompleto(0); await page.waitForSelector('#lector.abierto');
   const titulo = await texto('#lectorTitulo');
   await page.click('#cerrarLector');
   const modelo = srv.registro.slice(registroAlCambiar).filter(r => r.host === 'huggingface.co');
   verdad(!modelo.length, 'volvió a descargar el modelo: ' + modelo.map(r => r.ruta));
-  return { exacta: a.tarjetas[0].ref, significado: b.tarjetas[0].ref, lector: titulo, descargasDelModelo: modelo.length };
+  await captura('A3b-agios-con-datos-anteriores');
+  return { panel, exacta: a.tarjetas[0].ref, significado: b.tarjetas[0].ref, lector: titulo, descargasDelModelo: 0 };
 });
 
 /* ================================================================
-   B. INTERFAZ ANESTHIOS
+   B. MENÚ, SELECTOR Y TRANSICIONES (con Agios)
    ================================================================ */
-await paso('B1. Nombre de la app y título del asistente', async () => {
-  await cerrarVentanas();
-  const titulo = await page.title();
-  const marca = (await texto('.marca')).trim();
-  const manifiesto = await page.evaluate(async () => (await fetch('./manifest.webmanifest')).json());
-  verdad(titulo === 'Anesthios', 'title: ' + titulo);
-  verdad(marca.startsWith('ANESTHIOS') && marca.includes('ASISTENTES GONZALEANOS'), marca);
-  verdad(manifiesto.name === 'Anesthios' && manifiesto.short_name === 'Anesthios' && manifiesto.background_color === '#07070d', JSON.stringify(manifiesto));
-  verdad(await texto('#nombreAsistente') === 'AGIOS' && await texto('#subtituloAsistente') === 'LECTURAS Y EVANGELIOS', 'título del asistente');
-  verdad(!(await page.locator('#tituloCol.apagado').count()) && await page.locator('#chip.on').count(), 'encendido: título brillante y punto morado');
-  await tocarAgios(); await esperarModo('apagado');
-  await page.waitForFunction(() => document.getElementById('dEnergia').textContent === '0%', null, { timeout: 8000 }).catch(() => {});
-  verdad(await page.locator('#tituloCol.apagado').count() && !(await page.locator('#chip.on').count()), 'apagado: título gris y punto gris');
-  verdad(await texto('#dEnergia') === '0%', 'energía apagado: ' + await texto('#dEnergia'));
-  verdad(await page.evaluate(() => getComputedStyle(document.getElementById('chip')).whiteSpace) === 'nowrap', 'el chip se puede partir');
-  await captura('B1-apagado');
-  await tocarAgios(); await esperarModo('activo');
-  await page.waitForFunction(() => document.getElementById('dEnergia').textContent === '100%', null, { timeout: 8000 }).catch(() => {});
-  verdad(await texto('#dEnergia') === '100%', 'energía encendido: ' + await texto('#dEnergia'));
-  verdad(/^\d{1,2}:\d{2}/.test(await texto('#dHora')), 'hora');
-  const fuentes = await page.evaluate(async () => { await document.fonts.ready; await document.fonts.load("600 20px 'Rajdhani'"); await document.fonts.load("500 11px 'JetBrains Mono'"); return [document.fonts.check("600 20px 'Rajdhani'"), document.fonts.check("500 11px 'JetBrains Mono'")]; });
-  verdad(fuentes.every(Boolean), 'tipografías no cargadas: ' + fuentes);
-  return { titulo, marca, manifiesto: manifiesto.name, fuentes };
-});
-
-await paso('B2. Sugerencias: ejemplos cuando aún no hay búsquedas, e Índice', async () => {
-  await page.evaluate(() => localStorage.removeItem('anesthios.recientes'));
-  await page.reload(); await page.waitForFunction(() => window.__agios, null, { timeout: 60000 });
-  await encender();
-  const sug = await page.$$eval('#recientes button', bs => bs.map(b => b.textContent));
-  verdad(sug.join('|') === 'Evang. Gonz. 145|salmo 87|la misericordia del Padre', 'sugerencias: ' + sug);
-  verdad(!(await page.locator('#cerrarTodas.ver').count()), '«Cerrar todas» no debía verse sin ventanas');
-  await page.click('#sugIndice');
-  await page.waitForSelector('#hoja.abierta .rejilla');
-  await page.click('#cerrarHoja');
-  return { sug };
-});
-
-await paso('B3. Ventanas se acumulan: 23 → cerrar S y E → 24 → cerrar S y E → quedan L·23 y L·24', async () => {
+await paso('B1. Ventanas de Agios: acumular (23→24), mover sin girar, no duplicar', async () => {
   await cerrarVentanas();
   const a = await buscar('Lect. Gonz. 23');
   verdad(a.tarjetas.map(t => t.corta).join() === 'L·23,S·23,E·23', a.tarjetas.map(t => t.corta).join());
-  verdad(await page.locator('#cerrarTodas.ver').count(), '«Cerrar todas» debía verse con 3 ventanas');
-  verdad(await texto('#dAbiertas') === '3', 'panel Abiertas: ' + await texto('#dAbiertas'));
-  await captura('B3a-tres-ventanas');
+  verdad(a.tVisible < 1000, 'Agios no usa hechizo: las ventanas debían nacer de inmediato (' + a.tVisible + ' ms)');
   for (const c of ['S·23', 'E·23']) await cerrarVentana(c);
-  await page.waitForFunction(() => document.querySelectorAll('.tarjeta').length === 1);
-  verdad(!(await page.locator('#cerrarTodas.ver').count()), '«Cerrar todas» no debía verse con 1 ventana');
-  const b = await buscar('Lect. Gonz. 24', { acumular: true });
-  verdad(b.tarjetas.map(t => t.corta).join() === 'L·24,S·24,E·24', b.tarjetas.map(t => t.corta).join());
-  verdad(b.todas.length === 4, 'debían acumularse 4: ' + b.todas.length);
+  await buscar('Lect. Gonz. 24', { acumular: true });
   for (const c of ['S·24', 'E·24']) await cerrarVentana(c);
-  await page.waitForFunction(() => document.querySelectorAll('.tarjeta').length === 2);
-  const v = await vivas();
+  await page.waitForFunction(() => document.querySelectorAll('.resultados-col:not([hidden]) .tarjeta').length === 2);
   const lista = await page.$$eval('#dLista span', s => s.map(x => x.textContent));
-  await captura('B3b-quedan-L23-L24');
-  verdad(v.map(t => t.corta).join() === 'L·23,L·24', v.map(t => t.corta).join());
-  verdad(lista.join() === 'L·23,L·24' && await texto('#dAbiertas') === '2', 'panel: ' + lista + ' / ' + await texto('#dAbiertas'));
-  const [p, q] = v;
-  const solapan = p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h;
-  verdad(!solapan, 'la ventana nueva tapó a la anterior');
-  return { panel: lista, posiciones: v.map(t => [t.corta, t.x, t.y]) };
-});
-
-await paso('B4. No duplicar: buscar una pieza ya abierta la trae al frente y destella', async () => {
-  const antes = await vivas();
+  verdad(lista.join() === 'L·23,L·24', 'panel: ' + lista);
+  await page.waitForTimeout(1200);
+  const rot0 = (await g(() => window.__agios.S)).rot;
+  const cab = await page.locator('.resultados-col:not([hidden]) .tarjeta[data-corta="L·24"] .cab .ref').boundingBox();
+  await page.mouse.move(cab.x + 10, cab.y + cab.height / 2); await page.mouse.down();
+  await page.mouse.move(cab.x + 50, cab.y + cab.height / 2 + 60, { steps: 8 }); await page.mouse.up();
+  verdad(Math.abs((await g(() => window.__agios.S)).rot - rot0) < 1e-6 && await modo() === 'activo', 'arrastrar movió o apagó a Agios');
   const r = await buscar('Lect. Gonz. 23', { acumular: true });
-  const v = await vivas();
-  const l23 = v.find(t => t.corta === 'L·23');
-  verdad(v.filter(t => t.corta === 'L·23').length === 1, 'se duplicó L·23');
-  verdad(l23.destella && l23.z === Math.max(...v.map(t => t.z)), 'L·23 no pasó al frente / no destelló');
-  // Salmo y Evangelio 23 se abren como nuevas (no estaban abiertas)
-  verdad(r.tarjetas.map(t => t.corta).join() === 'S·23,E·23', r.tarjetas.map(t => t.corta).join());
+  const l23 = (await vivas()).filter(t => t.corta === 'L·23');
+  verdad(l23.length === 1 && l23[0].destella, 'L·23 se duplicó o no destelló');
   for (const c of ['S·23', 'E·23']) await cerrarVentana(c);
-  await page.waitForFunction(n => document.querySelectorAll('.tarjeta').length === n, antes.length);
-  return { abiertas: (await vivas()).map(t => t.corta) };
+  await page.waitForFunction(() => document.querySelectorAll('.resultados-col:not([hidden]) .tarjeta').length === 2);
+  await captura('B1-ventanas-agios');
+  return { panel: lista, nuevasTrasRepetir: r.tarjetas.length };
 });
 
-await paso('B5. Mover ventanas (mouse y dedo) sin girar ni apagar a Agios; la tocada pasa al frente', async () => {
-  await page.waitForTimeout(1200);                   // que se detenga cualquier inercia
-  const rot0 = (await page.evaluate(() => window.__agios.S)).rot;
-  const card = page.locator('.tarjeta[data-corta="L·23"]');
-  const ini = await vivas();
-  const a0 = ini.find(t => t.corta === 'L·23');
-  const cab = await card.locator('.cab .ref').boundingBox();
-  await page.mouse.move(cab.x + 10, cab.y + cab.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(cab.x + 70, cab.y + cab.height / 2 + 140, { steps: 10 });
-  await page.mouse.up();
-  let v = await vivas(); const a1 = v.find(t => t.corta === 'L·23');
-  verdad(Math.abs(a1.x - a0.x - 60) <= 2 && Math.abs(a1.y - a0.y - 140) <= 2, `mouse: ${a0.x},${a0.y} → ${a1.x},${a1.y}`);
-  verdad(a1.z === Math.max(...v.map(t => t.z)), 'no pasó al frente');
-  // Con el dedo (eventos táctiles reales de Chromium)
-  const cdp = await ctx.newCDPSession(page);
-  const b0 = v.find(t => t.corta === 'L·24');
-  const cab2 = await page.locator('.tarjeta[data-corta="L·24"] .cab .ref').boundingBox();
-  const x = cab2.x + 10, y = cab2.y + cab2.height / 2;
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
-  for (let k = 1; k <= 10; k++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x - 4 * k, y: y + 9 * k }] });
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await page.waitForTimeout(200);
-  v = await vivas(); const b1 = v.find(t => t.corta === 'L·24');
-  verdad(Math.abs(b1.x - b0.x + 40) <= 3 && Math.abs(b1.y - b0.y - 90) <= 3, `dedo: ${b0.x},${b0.y} → ${b1.x},${b1.y}`);
-  verdad(b1.z === Math.max(...v.map(t => t.z)), 'la tocada con el dedo no pasó al frente');
-  // No se sale de la zona (con la que quedó al frente, L·24)
-  const cab3 = await page.locator('.tarjeta[data-corta="L·24"] .cab .ref').boundingBox();
-  await page.mouse.move(cab3.x + 10, cab3.y + cab3.height / 2); await page.mouse.down();
-  await page.mouse.move(cab3.x + 3000, cab3.y + 3000, { steps: 4 }); await page.mouse.up();
-  const zona = await page.locator('#zona').boundingBox();
-  const lim = (await vivas()).find(t => t.corta === 'L·24');
-  verdad(lim.x <= zona.width - 60 && lim.y <= zona.height - 40, 'se salió de la zona');
-  const rot1 = (await page.evaluate(() => window.__agios.S)).rot;
-  verdad(Math.abs(rot1 - rot0) < 1e-6, `Agios giró: ${rot0} → ${rot1}`);
-  verdad(await modo() === 'activo', 'Agios cambió de estado: ' + await modo());
-  await captura('B5-ventanas-movidas');
-  return { mouse: [a1.x - a0.x, a1.y - a0.y], dedo: [b1.x - b0.x, b1.y - b0.y], rot: rot1 - rot0 };
-});
-
-await paso('B6. Sugerencias recientes: las últimas 3 búsquedas', async () => {
-  await buscar('salmo 87', { acumular: true });
-  await buscar('conjunto 300', { acumular: true });
-  const sug = await page.$$eval('#recientes button', bs => bs.map(b => b.textContent));
-  verdad(sug.join('|') === 'conjunto 300|salmo 87|Lect. Gonz. 23', 'recientes: ' + sug.join('|'));
-  const n = (await vivas()).length;
-  verdad(n >= 6, 'debían acumularse ventanas: ' + n);
-  const lista = await page.$$eval('#dLista span', s => s.map(x => x.textContent));
-  verdad(n <= 8 || lista[lista.length - 1] === '+' + (n - 8), 'panel con «+N»: ' + lista);
-  await captura('B6-muchas-ventanas');
-  // Tocar una sugerencia busca
-  await page.locator('#recientes button', { hasText: 'salmo 87' }).click();
-  await esperarModo('activo', 30000);
-  const ya = (await vivas()).filter(t => t.corta === 'S·87');
-  verdad(ya.length === 1 && ya[0].destella, 'la sugerencia no buscó (o duplicó)');
-  return { sug, abiertas: n, panel: lista };
-});
-
-await paso('B7. «Cerrar todas», apagar cierra todo y subir un archivo NO cierra las ventanas', async () => {
-  const etapa = async (nombre, fn) => { try { return await fn(); } catch (e) { await captura('B7-fallo'); throw new Error(`${nombre} (modo ${await modo().catch(() => '?')}, recargas ${cargas}): ${e.message}`); } };
-  const cargas0 = cargas;
-  await etapa('cerrar todas', async () => {
-    await page.click('#cerrarTodas');
-    await esperarSinVentanas();
-    verdad(await texto('#dAbiertas') === '0' && await texto('#dLista') === '—', 'panel tras cerrar todas');
-  });
-  await etapa('buscar 40', () => buscar('Lect. Gonz. 40'));
-  await etapa('apagar con ventanas', async () => { await tocarAgios(); await esperarModo('apagado', 10000); await esperarSinVentanas(); });
-  await etapa('encender', async () => { await tocarAgios(); await esperarModo('activo', 10000); });
-  await etapa('buscar 41', () => buscar('Lect. Gonz. 41'));
-  const n = (await vivas()).length;
-  await etapa('subir', async () => {
-    await subir('foto.jpg', Buffer.from('no es un docx'), 'image/jpeg');
-    await esperarModo('error', 20000); await esperarModo('activo', 10000);
-  });
-  verdad((await vivas()).length === n, 'subir cerró ventanas');
-  return { abiertasTrasSubir: n, recargasInesperadas: cargas - cargas0 };
+await paso('B2. Selector AGIOS → KYRIEN: Implosión (~7 s), la escena oculta no se dibuja, ventanas guardadas', async () => {
+  const d0 = await g(() => window.__agios.dibujos);
+  await page.waitForTimeout(1000);
+  const d1 = await g(() => window.__agios.dibujos);
+  verdad(d1.doctrina === d0.doctrina, 'Kyrien (oculto) se dibujó');
+  verdad(await g(() => window.__agios.nebulosa) === await g(() => window.__agios.nebulosa), '');
+  const neb0 = await g(() => window.__agios.nebulosa);
+  const t0 = Date.now();
+  await page.click('#selector button[data-col="doctrina"]');
+  await page.waitForFunction(() => !!window.__agios.cambio, null, { timeout: 5000, polling: 20 });
+  const c = await g(() => window.__agios.cambio);
+  const bloqueado = await page.evaluate(() => [...document.querySelectorAll('#selector button')].every(b => b.disabled) && document.getElementById('consulta').disabled && document.getElementById('btnSubir').disabled);
+  await page.waitForTimeout(1300); await captura('B2a-implosion-fogonazo');
+  await page.waitForTimeout(1500); await captura('B2b-implosion-galaxia');
+  await page.waitForFunction(() => !window.__agios.cambio && window.__agios.activa === 'doctrina', null, { timeout: 120000, polling: 100 });
+  const dur = Date.now() - t0;
+  await page.waitForTimeout(700); await captura('B2c-kyrien');
+  verdad(c.modo === 'implosion', 'estilo: ' + c.modo);
+  verdad(bloqueado, 'durante la transición debían bloquearse selector, búsqueda y subir');
+  // 7 s de animación; en un navegador sin GPU cada cuadro avanza como máximo 50 ms,
+  // así que en tiempo real tarda más (en un dispositivo a 60 fps son ~7 s).
+  verdad(c.dur === 7000 && dur >= 6000, 'duración ' + c.dur + ' / ' + dur);
+  verdad(await g(() => window.__agios.tema) === 'tema-kyrien', 'tema');
+  verdad((await vivas()).length === 0, 'se ven ventanas de Agios en Kyrien');
+  const da = await g(() => window.__agios.dibujos); await page.waitForTimeout(1000); const db2 = await g(() => window.__agios.dibujos);
+  verdad(db2.lecturas === da.lecturas && db2.doctrina > da.doctrina, 'debía dibujarse solo Kyrien: ' + JSON.stringify([da, db2]));
+  verdad(await g(() => window.__agios.nebulosa) === neb0, 'la nebulosa se dibujó fuera del menú');
+  const panel = { etiqueta: await texto('#dEtiquetaCol'), valor: await texto('#dConjuntos'), indice: await texto('#dIndice') };
+  verdad(panel.etiqueta === 'Bloques' && panel.indice === 'sin documento', JSON.stringify(panel));
+  return { animacion: c.dur, tiempoReal: dur, panel };
 });
 
 /* ================================================================
-   C. FLUJO COMPLETO (desde cero)
+   C. KYRIEN
    ================================================================ */
-await paso('C1. Pruebas unitarias (ordinales, analizador, referencias, búsqueda exacta)', async () => {
-  const p2 = await ctx.newPage();
-  await p2.goto(URL_APP + 'pruebas/index.html');
-  await p2.waitForFunction(() => window.__pruebas, null, { timeout: 30000 });
-  const r = await p2.evaluate(() => window.__pruebas);
-  await p2.screenshot({ path: path.join(SALIDA, 'C1-pruebas-unitarias.png') });
-  await p2.close();
-  verdad(r.fallos.length === 0, JSON.stringify(r.fallos));
-  return { total: r.total };
-});
-
-await paso('C2. Borrar la colección desde el menú (para procesar desde cero)', async () => {
-  await cerrarVentanas();
-  await page.click('#btnMenu');
-  await page.waitForSelector('button[data-accion="borrar"]');
-  await page.click('button[data-accion="borrar"]');
-  await page.waitForFunction(() => !document.querySelector('button[data-accion="borrar"]'));
-  const h = await huellaDatos();
-  await page.click('#cerrarHoja');
-  verdad(h.piezas === 0 && h.fragmentos === 0, JSON.stringify(h));
-  verdad(await texto('#dConjuntos') === '—' && await texto('#dIndice') === 'sin documento' && await texto('#dDoc') === '—', 'paneles tras borrar');
-  return h;
-});
-
-await paso('C3. Error: .docx sin estructura → luz roja y mensaje claro', async () => {
-  await subir('sin-titulos.docx', docSin);
-  await esperarModo('error', 30000);
-  const d = await page.evaluate(() => window.__agios.destello);
-  verdad(await page.locator('#chip.err').count(), 'el chip no se puso rojo');
+await paso('C1. Kyrien: un .docx que no es la Doctrina → luz roja y mensaje claro', async () => {
+  await subir('lecturas.docx', lectV1);
+  await esperarModo('error', 60000);
+  verdad(await page.locator('#chip.err').count(), 'sin luz roja');
   await page.waitForSelector('#hoja.abierta', { timeout: 5000 });
-  const txt = await texto('#hojaContenido');
-  await captura('C3-error-sin-estructura');
-  verdad(d.color === '#ff4d5e', 'sin destello rojo');
-  verdad(/No se reconoció ninguna Santa Lectura/.test(txt), txt.slice(0, 200));
-  await page.click('#cerrarHoja');
-  await esperarModo('activo');
-});
-
-let pctAntes = 0;
-await paso('C4. Procesar (x3 + temblor, avance en el chip y en Índice)', async () => {
-  await subir('FICTICIO-documento-de-prueba.docx', docV1);
-  await esperarModo('procesando', 10000);
-  const m = await page.evaluate(() => window.__agios.meta);
-  verdad(m.mult === 3 && m.temblor === 1 && m.apertura === 0, 'coreografía de procesamiento ' + JSON.stringify(m));
-  await page.waitForFunction(() => /procesando (\d+)% · \d+\/1107 piezas/.test(document.getElementById('estado').textContent) &&
-    +document.getElementById('estado').textContent.match(/(\d+)%/)[1] >= 20, null, { timeout: 600000, polling: 100 });
-  const e = await estado();
-  pctAntes = +e.match(/(\d+)%/)[1];
-  const ind = await texto('#dIndice');
-  const alto = await page.evaluate(() => document.getElementById('chip').getBoundingClientRect().height);
-  await captura('C4-procesando');
-  verdad(/^indexando \d+%$/.test(ind), 'Índice: ' + ind);
-  verdad(alto < 32, 'el chip se partió en dos líneas: ' + alto);
-  return { estado: e, indice: ind };
-});
-
-await paso('C5. Interrupción (recargar a mitad) → continúa donde se quedó', async () => {
-  await page.reload();
-  await page.waitForFunction(() => window.__agios, null, { timeout: 60000 });
-  await esperarModo('procesando', 15000);
-  await page.waitForFunction(() => /procesando \d+%/.test(document.getElementById('estado').textContent), null, { timeout: 120000, polling: 50 });
-  const pctDespues = +(await estado()).match(/(\d+)%/)[1];
-  verdad(pctDespues >= pctAntes - 1, `empezó de cero: ${pctAntes}% → ${pctDespues}%`);
-  await page.waitForFunction(() => ['exito', 'activo'].includes(window.__agios.modo), null, { timeout: 900000, polling: 100 });
-  const d = await page.evaluate(() => window.__agios.destello);
-  verdad(d.color === '#3ddc84', 'sin luz verde');
-  await captura('C5-listo-luz-verde');
-  await esperarModo('activo');
-  verdad(await contarPend() === 0, 'quedaron fragmentos pendientes');
-  const doc = await texto('#dDoc');
-  verdad(await texto('#dIndice') === '● listo' && await texto('#dConjuntos') === '371' && /^(ahora|hace \d+ min)$/.test(doc), 'paneles tras procesar: ' + doc);
-  return { pctAntes, pctDespues };
-});
-
-await paso('C6. Estructura detectada', async () => {
-  await page.click('#btnMenu');
-  await page.waitForSelector('#hoja.abierta');
-  await page.click('button[data-accion="estructura"]');
-  await page.waitForFunction(() => document.getElementById('hojaTitulo').textContent === 'Estructura detectada');
   const t = await texto('#hojaContenido');
-  await captura('C6-estructura-detectada');
-  for (const x of ['371Conjuntos', '371Santas Lecturas', '371Santos Salmos', '365Santos Evangelios', '89–94 (6)', 'Nota del copista', 'Conjunto 1', 'Conjunto 371'])
-    verdad(t.includes(x), 'falta «' + x + '»');
-  await page.click('#cerrarHoja');
+  verdad(/No se reconoció ningún bloque de la Doctrina/.test(t), t.slice(0, 160));
+  await captura('C1-kyrien-sin-estructura');
+  await page.click('#cerrarHoja'); await esperarModo('activo');
 });
 
-await paso('C7. Referencias (x2 mientras busca)', async () => {
-  const r = await buscar('Lect. Gonz. 145');
-  verdad(r.mult === 2, 'no aceleró a x2: ' + r.mult);
-  verdad(r.tarjetas[0].ref === 'Lect. Gonz. 145' && r.tarjetas.length >= 2 && r.tarjetas.length <= 5, JSON.stringify(r.tarjetas.map(t => t.ref)));
-  const a = await buscar('octava lectura'); verdad(a.tarjetas[0].ref === 'Lect. Gonz. 8', a.tarjetas[0]?.ref);
-  const b = await buscar('salmo 87'); verdad(b.tarjetas[0].ref === 'Salmo Gonz. 87', b.tarjetas[0]?.ref);
-  const c = await buscar('Evang. Gonz. 16'); verdad(c.tarjetas[0].tipo === 'Santo Evangelio de Jesucristo', c.tarjetas[0]?.tipo);
-  const d = await buscar('conjunto 300'); verdad(d.tarjetas.map(t => t.ref).join() === 'Lect. Gonz. 300,Salmo Gonz. 300,Evang. Gonz. 300', d.tarjetas.map(t => t.ref).join());
-  const e = await buscar('Evang. Gonz. 90'); verdad(e.tarjetas.length === 0 && /No existe/.test(e.pista), e.pista);
-  const s = await buscar('Salmo Gonz. 2'); verdad(s.tarjetas[0].tipo === 'Santo Salmo de Súplica', s.tarjetas[0]?.tipo);
-  return { conjunto300: d.tarjetas.length, evang90: e.pista };
-});
-
-await paso('C8. Frase exacta sin acentos ni mayúsculas, con resaltado', async () => {
-  const r = await buscar('LAMPARA DEL ALFARERO');
-  await captura('C8-frase-exacta');
-  verdad(r.tarjetas[0].ref === 'Evang. Gonz. 145', r.tarjetas[0]?.ref);
-  verdad(r.tarjetas[0].marcado.includes('lámpara del alfarero'), JSON.stringify(r.tarjetas[0].marcado));
-  verdad(/exacta/.test(r.tarjetas[0].origen), r.tarjetas[0].origen);
-  verdad(r.tarjetas.length >= 2 && r.tarjetas.length <= 5, 'entre 2 y 5: ' + r.tarjetas.length);
-  return { n: r.tarjetas.length };
-});
-
-const CONSULTAS = [
-  ['mar', 'hombres que lanzan mallas desde un bote para capturar pescado'],
-  ['pastor', 'el cuidador de corderos que va tras el animal extraviado'],
-  ['sanacion', 'una persona postrada por la enfermedad recupera la salud'],
-  ['casa', 'edificar una vivienda sobre piedra firme para resistir el temporal'],
-  ['invierno', 'calentarse junto a las llamas cuando hiela'],
-];
-await paso('C9. Búsqueda por significado', async () => {
-  const out = [];
-  for (const [tema, q] of CONSULTAS) {
-    const r = await buscar(q);
-    if (tema === 'mar') await captura('C9-por-significado');
-    verdad(r.tarjetas.length >= 2 && r.tarjetas.length <= 5, `${q}: ${r.tarjetas.length} resultados`);
-    const temas = r.tarjetas.map(t => temaDeTexto(t.texto));
-    verdad(temas[0] === tema, `«${q}» → tema ${temas[0]} (${r.tarjetas[0].ref})`);
-    out.push({ tema, temas: temas.join(), primero: r.tarjetas[0].ref });
-  }
-  return out;
-});
-
-await paso('C10. Lector: Ver completo, anterior/siguiente, Lectura/Salmo/Evangelio, índice', async () => {
-  await buscar('lampara del alfarero');
-  await verCompleto(0);
-  await page.waitForSelector('#lector.abierto');
-  const titulo = () => texto('#lectorTitulo');
-  verdad((await titulo()).startsWith('Evang. Gonz. 145'), await titulo());
-  verdad(await page.locator('#lectorTexto mark').count() > 0, 'sin resaltado en el lector');
-  await captura('C10-lector');
-  await page.click('#lecAnterior'); verdad((await titulo()).startsWith('Evang. Gonz. 144'), await titulo());
-  await page.click('#lecTipos button[data-tipo="lectura"]'); verdad((await titulo()).startsWith('Lect. Gonz. 144'), await titulo());
-  await page.click('#lecTipos button[data-tipo="salmo"]'); verdad((await titulo()).startsWith('Salmo Gonz. 144'), await titulo());
-  await page.click('#lecSiguiente'); verdad((await titulo()).startsWith('Salmo Gonz. 145'), await titulo());
-  await page.click('#lecIndice');
-  await page.waitForSelector('#hoja.abierta .rejilla');
-  verdad(await page.locator('.rejilla button').count() === 371, 'índice incompleto');
-  await page.click('.rejilla button:text-is("89")');
-  verdad((await titulo()).startsWith('Lect. Gonz. 89'), await titulo());
-  verdad(await page.locator('#lecTipos button[data-tipo="evangelio"]').isDisabled(), 'Evangelio 89 debía estar deshabilitado');
-  await page.click('#lecIndice'); await page.fill('#irA', 'evangelio 88'); await page.press('#irA', 'Enter');
-  await page.click('#lecSiguiente'); verdad((await titulo()).startsWith('Evang. Gonz. 95'), 'tras el 88 debía seguir el 95: ' + await titulo());
-  await page.click('#cerrarLector');
-});
-
-await paso('C11. Actualización incremental (con ventanas abiertas, que no se cierran)', async () => {
-  const abiertas = (await vivas()).length;
-  await subir('FICTICIO-documento-de-prueba-v2.docx', docV2);
+let pctInterrupcion = 0;
+await paso('C2. Kyrien procesa: el hechizo se deshace al tocar 📎 y se rearma al ritmo del avance', async () => {
+  await page.click('#btnSubir'); await page.waitForSelector('#subir.abierta'); await page.waitForTimeout(1200);
+  const abierto = (await g(() => window.__agios.S)).apertura;
+  await captura('C2a-hechizo-deshecho');
+  await page.setInputFiles('#archivo', { name: 'FICTICIO-doctrina-de-prueba.docx', mimeType: MIME, buffer: docV1 });
   await esperarModo('procesando', 10000);
-  await page.waitForFunction(() => /de 5 pieza/.test(document.getElementById('hint').textContent), null, { timeout: 60000, polling: 50 });
+  const muestras = [];
+  for (let i = 0; i < 400 && muestras.length < 6; i++) {
+    const s = await g(() => ({ p: window.__agios.progreso, a: window.__agios.S.apertura, e: document.getElementById('estado').textContent, m: window.__agios.meta }));
+    if (!muestras.length || s.p - muestras[muestras.length - 1].p > 0.08) muestras.push(s);
+    if (s.p > 0.35) break;
+    await page.waitForTimeout(250);
+  }
+  await captura('C2b-rearmandose');
+  pctInterrupcion = Math.round(100 * (await g(() => window.__agios.progreso)));
+  verdad(abierto > 0.95, 'al tocar 📎 la apertura debía subir a 1: ' + abierto);
+  verdad(muestras[0].m.mult === 3 && muestras[0].m.temblor === 1, 'x3 y temblor');
+  for (const s of muestras) verdad(Math.abs(s.a - (1 - s.p)) < 0.12, `apertura ${s.a.toFixed(2)} ≠ 1 − progreso ${(1 - s.p).toFixed(2)}`);
+  verdad(muestras.length >= 3 && muestras[muestras.length - 1].a < muestras[0].a, 'no se rearmó');
+  return { abierto, muestras: muestras.map(s => [+s.p.toFixed(2), +s.a.toFixed(2)]), estado: muestras[muestras.length - 1].e };
+});
+
+await paso('C3. Interrupción a mitad (recargar) → menú → entrar a Kyrien → continúa donde se quedó', async () => {
+  const pend = (await huella('doctrina')).pendientes;
+  await page.reload(); await listo();
+  verdad(await g(() => window.__agios.enMenu), 'debía abrir en el menú');
+  await entrarA('doctrina');
+  await esperarModo('procesando', 15000);
+  await page.waitForFunction(() => /\d+%/.test(document.getElementById('estado').textContent), null, { timeout: 60000, polling: 50 });
+  const e = await estado();
+  const pct = +e.match(/(\d+)%/)[1];
+  await page.waitForFunction(() => ['exito', 'activo'].includes(window.__agios.modo), null, { timeout: 900000, polling: 200 });
+  verdad((await g(() => window.__agios.destello)).color === '#3ddc84', 'sin luz verde');
+  await esperarModo('activo');
+  const h = await huella('doctrina');
+  verdad(h.pendientes === 0 && pend > 0 && pct > 0, `pendientes ${pend} → ${h.pendientes}; reanudó en ${pct}%`);
+  return { pendientesAlInterrumpir: pend, reanudoEn: e, piezas: h.piezas, fragmentos: h.fragmentos };
+});
+
+await paso('C4. Estructura detectada de la Doctrina: 11 bloques, árbol plegable, dudosos', async () => {
+  await page.click('#btnMenu'); await page.waitForSelector('#hoja.abierta');
+  await page.click('.doc[data-col="doctrina"] button[data-accion="estructura"]');
+  await page.waitForSelector('#hojaContenido .arbol');
+  const t = await texto('#hojaContenido');
+  for (const x of ['11Bloques', 'Títulos dudosos', 'ORACIÓN FINAL', 'CRÓNICAS', 'NOVENARIOS', 'PARTE II._'])
+    verdad(t.includes(x), 'falta «' + x + '»');
+  await page.locator('#hojaContenido .arbol > li.n-bloque').nth(5).locator('summary').first().click();
+  await captura('C4-estructura-arbol');
+  const plegados = await page.$$eval('#hojaContenido .arbol details', d => d.filter(x => !x.open).length);
+  await page.click('#cerrarHoja');
+  verdad(await texto('#dConjuntos') === '11', 'panel Bloques: ' + await texto('#dConjuntos'));
+  return { plegados };
+});
+
+await paso('C5. Referencias en Kyrien: título, fecha de Logos, combinación, bloque', async () => {
+  const a = await buscar('Te fallé');
+  verdad(a.tarjetas[0]?.ref === 'Crónicas · “Te fallé”' && a.tarjetas[0].tipo === 'Crónicas' && a.tarjetas[0].corta === 'Crón·1', JSON.stringify(a.tarjetas[0]));
+  verdad(a.tVisible >= 950, 'las ventanas debían nacer del hechizo (~1 s después): ' + a.tVisible + ' ms');
+  verdad(a.tarjetas[0].tema === 'kyrien', 'ventana de pergamino');
+  await captura('C5a-te-falle-hechizo');
+  const b = await buscar('Logos 20 de septiembre de 2025');
+  verdad(b.tarjetas[0]?.corta === 'Logos·20/09/25', JSON.stringify(b.tarjetas.map(t => t.corta)));
+  const c = await buscar('7 de agosto 2017');
+  verdad(c.tarjetas[0]?.corta === 'Logos·07/08/17', JSON.stringify(c.tarjetas.map(t => t.corta)));
+  const d = await buscar('Estigmas fundamento biblico');
+  verdad(d.tarjetas[0]?.ref === 'Estigmas · FUNDAMENTO BÍBLICO._', d.tarjetas[0]?.ref);
+  const e = await buscar('El hijo de Dios');
+  verdad(/EL HIJO DE DIOS/.test(e.tarjetas[0]?.ref || ''), e.tarjetas[0]?.ref);
+  const f = await buscar('Crónicas');
+  verdad(f.tarjetas.length === 5 && f.tarjetas.every(t => t.tipo === 'Crónicas') && /piezas/.test(f.pista), f.pista);
+  const h = await buscar('Credo');
+  verdad(h.tarjetas.length === 3 && h.tarjetas.some(t => /EL CREDO/.test(t.ref)), JSON.stringify(h.tarjetas.map(t => t.ref)));
+  return { te_falle: a.tVisible + ' ms', crónicas: f.pista };
+});
+
+await paso('C6. Kyrien: búsqueda exacta y por significado', async () => {
+  const a = await buscar('recorde entonces');
+  verdad(a.tarjetas[0]?.ref === 'Crónicas · “Te fallé”' && a.tarjetas[0].marcado.some(m => /Recordé entonces/.test(m)), JSON.stringify(a.tarjetas[0]));
+  const b = await buscar('hombres que lanzan mallas desde un bote para capturar pescado');
+  verdad(temaDeTexto(b.tarjetas[0]?.texto || '') === 'mar' && b.tarjetas.length >= 2 && b.tarjetas.length <= 5, JSON.stringify(b.tarjetas.map(t => t.ref)));
+  await captura('C6-kyrien-significado');
+  return { exacta: a.tarjetas[0].ref, significado: b.tarjetas.map(t => t.corta) };
+});
+
+await paso('C7. Enlaces: «Lect. Gonz. 145» abre una ventana de Agios sobre Kyrien; «Palabra del Señor» abre Logos', async () => {
+  await buscar('Te fallé');
+  verdad((await vivas())[0].enlaces >= 1, 'la cita no es enlace');
+  await page.$eval(VIS + ' a.enlace', a => a.click());
+  await page.waitForFunction(() => [...document.querySelectorAll('.resultados-col:not([hidden]) .tarjeta.visible')].some(t => t.classList.contains('t-agios')), null, { timeout: 8000 });
+  const v = await vivas();
+  const ag = v.find(t => t.tema === 'agios');
+  verdad(ag.ref === 'Lect. Gonz. 145' && ag.corta === 'L·145', JSON.stringify(ag));
+  verdad(await g(() => window.__agios.activa) === 'doctrina' && await g(() => window.__agios.tema) === 'tema-kyrien', 'cambió de asistente');
+  await captura('C7a-ventana-agios-en-kyrien');
+  // Palabra del Señor → Logos (párrafo del Prólogo de Crónicas que la cita)
+  await buscar('lo dice la palabra');
+  const prol = (await vivas()).findIndex(t => t.corta === 'Crón·Pról');
+  verdad(prol >= 0, 'falta el Prólogo de Crónicas: ' + (await vivas()).map(t => t.corta));
+  const enlaces = await page.$$eval(VIS, (ts, i) => [...ts[i].querySelectorAll('a.enlace')].map(a => a.textContent), prol);
+  verdad(enlaces.some(t => /Palabra del Señor, 20 de julio de 2024/.test(t)), 'Palabra del Señor no enlazada: ' + enlaces);
+  verdad(!enlaces.some(t => /1 de enero de 2020/.test(t)), 'una fecha sin entrada no debía enlazarse');
+  await page.$$eval(VIS, (ts, i) => [...ts[i].querySelectorAll('a.enlace')].find(a => /Palabra/.test(a.textContent)).click(), prol);
+  await page.waitForFunction(() => [...document.querySelectorAll('.resultados-col:not([hidden]) .tarjeta')].some(t => t.dataset.corta === 'Logos·20/07/24'), null, { timeout: 8000 });
+  return { agios: ag.ref, logos: 'Logos·20/07/24' };
+});
+
+await paso('C8. Lector de pergamino, enlace desde el lector e índice en árbol', async () => {
+  await buscar('Te fallé');
+  await verCompleto(0); await page.waitForSelector('#lector.abierto');
+  verdad(await page.getAttribute('#lector', 'data-tema') === 'kyrien', 'el lector no es de pergamino');
+  verdad((await texto('#lectorTitulo')).startsWith('Crónicas · “Te fallé”'), await texto('#lectorTitulo'));
+  await captura('C8a-lector-pergamino');
+  await page.click('#lecSiguiente');
+  verdad((await texto('#lectorTitulo')).includes('El regreso a casa'), 'siguiente en orden del documento: ' + await texto('#lectorTitulo'));
+  await page.click('#lecAnterior');
+  await page.click('#lecIndice'); await page.waitForSelector('#hoja.abierta .arbol button.ir-pieza', { state: 'attached' });
+  await captura('C8b-indice-arbol');
+  await page.fill('#irA', 'Logos 7 de agosto de 2017'); await page.press('#irA', 'Enter');
+  verdad((await texto('#lectorTitulo')).includes('7 de Agosto de 2017'), await texto('#lectorTitulo'));
+  await page.click('#lecIndice');
+  await page.$$eval('#hojaContenido .arbol button.ir-pieza', bs => bs.find(b => b.textContent === 'EL CREDO').click());
+  verdad(await page.locator('#lectorTexto p').count() === 10, 'el Credo debía verse completo');
+  await page.click('#cerrarLector');
+  // enlace dentro del lector: cierra el lector y abre la ventana de Agios
+  await buscar('Te fallé'); await verCompleto(0); await page.waitForSelector('#lector.abierto');
+  await page.$eval('#lectorTexto a.enlace', a => a.click());
+  await page.waitForFunction(() => !document.getElementById('lector').classList.contains('abierto'));
+  await page.waitForFunction(() => [...document.querySelectorAll('.resultados-col:not([hidden]) .tarjeta')].some(t => t.dataset.corta === 'L·145'), null, { timeout: 8000 });
+});
+
+await paso('C9. Actualización con inserciones EN MEDIO: solo se reprocesan 3 piezas', async () => {
+  const antes = await vectoresDe('doctrina');
+  await subir('FICTICIO-doctrina-v2.docx', docV2);
+  await esperarModo('procesando', 10000);
+  const pista = await page.waitForFunction(() => { const t = document.getElementById('hint').textContent; return /pieza\(s\)/.test(t) && t; }, null, { timeout: 60000, polling: 20 }).then(h => h.jsonValue()).catch(() => '');
   await page.waitForFunction(() => window.__agios.modo !== 'procesando', null, { timeout: 300000 });
   await page.waitForSelector('#hoja.abierta', { timeout: 5000 });
   const t = await texto('#hojaContenido');
-  await captura('C11-actualizacion');
-  verdad(/3 nuevas · 2 modificadas · 1106 sin cambios · 0 eliminadas/.test(t), t.slice(0, 400));
-  await page.click('#cerrarHoja');
-  await esperarModo('activo');
-  verdad((await vivas()).length === abiertas, 'la subida cerró ventanas');
-  verdad(await texto('#dConjuntos') === '372', 'panel Conjuntos: ' + await texto('#dConjuntos'));
-  const r = await buscar('Esta frase fue agregada en la versión nueva');
-  const refs = r.tarjetas.map(x => x.ref);
-  verdad(refs.includes('Lect. Gonz. 12') && refs.includes('Evang. Gonz. 300'), JSON.stringify(refs));
-  return { refs };
+  await captura('C9-actualizacion-en-medio');
+  verdad(/2 nuevas · 1 modificadas · \d+ sin cambios · 0 eliminadas/.test(t), t.slice(0, 400));
+  await page.click('#cerrarHoja'); await esperarModo('activo');
+  const despues = await vectoresDe('doctrina');
+  const iguales = Object.keys(antes).filter(k => despues[k] && despues[k] === antes[k]).length;
+  // Piezas cuyos fragmentos recibieron embeddings nuevos (o son nuevos): deben ser exactamente 3
+  const pieza = k => k.slice(0, k.lastIndexOf('#'));
+  const tocadas = [...new Set(Object.keys(despues).filter(k => despues[k] !== antes[k]).map(pieza))];
+  verdad(tocadas.length === 3, 'piezas reprocesadas: ' + tocadas.join(' | '));
+  const r = await buscar('farol del sacristan');
+  verdad(r.tarjetas[0]?.ref === 'Crónicas · “La lámpara del sacristán”', r.tarjetas[0]?.ref);
+  return { pista, reprocesadas: tocadas.map(k => k.split('|')[1]), fragmentosConservados: iguales, de: Object.keys(antes).length };
 });
 
-await paso('C12. Sin conexión: servidores apagados; app, tipografías, búsquedas y lector siguen', async () => {
-  verdad(await page.evaluate(() => !!navigator.serviceWorker.controller), 'el service worker no controla la página');
-  await srv.cerrar();
-  const registroPrevio = srv.registro;
-  await page.reload();
-  await page.waitForFunction(() => window.__agios, null, { timeout: 60000 });
-  await encender();
-  const fuentes = await page.evaluate(async () => { await document.fonts.ready; await document.fonts.load("600 20px 'Rajdhani'"); await document.fonts.load("500 11px 'JetBrains Mono'"); return [document.fonts.check("600 20px 'Rajdhani'"), document.fonts.check("500 11px 'JetBrains Mono'")]; });
-  verdad(fuentes.every(Boolean), 'tipografías sin conexión: ' + fuentes);
-  const a = await buscar('lampara del alfarero');
-  verdad(a.tarjetas[0]?.ref === 'Evang. Gonz. 145', 'exacta sin conexión: ' + a.tarjetas[0]?.ref);
-  const b = await buscar('hombres que lanzan mallas desde un bote para capturar pescado', { acumular: true });
-  verdad(temaDeTexto(b.tarjetas[0]?.texto || '') === 'mar', 'significado sin conexión: ' + JSON.stringify(b.tarjetas[0]));
-  await captura('C12-sin-conexion');
-  srv = await iniciar({ raizApp: RAIZ, espejo: ESPEJO });
-  srv.registro.unshift(...registroPrevio);
-  return { exacta: a.tarjetas[0].ref, significado: b.tarjetas[0].ref, fuentes };
+await paso('C10. Título cambiado con el mismo texto = renombrada (conserva su índice)', async () => {
+  const antes = await vectoresDe('doctrina');
+  await subir('FICTICIO-doctrina-v3.docx', docV3);
+  await esperarModo('procesando', 10000);
+  await page.waitForFunction(() => window.__agios.modo !== 'procesando', null, { timeout: 300000 });
+  await page.waitForSelector('#hoja.abierta', { timeout: 5000 });
+  const t = await texto('#hojaContenido');
+  verdad(/0 nuevas · 0 modificadas · \d+ sin cambios · 0 eliminadas · 1 renombradas/.test(t), t.slice(0, 400));
+  await page.click('#cerrarHoja'); await esperarModo('activo');
+  const despues = await vectoresDe('doctrina');
+  const nueva = Object.keys(despues).find(k => k.includes('la-oveja-que-regreso-al-redil'));
+  const vieja = Object.keys(antes).find(k => k.includes('la-oveja-que-volvio'));
+  verdad(nueva && vieja && despues[nueva] === antes[vieja] && !despues[vieja], 'el embedding no se conservó');
+  const r = await buscar('La oveja que regresó al redil');
+  verdad(/regresó al redil/.test(r.tarjetas[0]?.ref || ''), r.tarjetas[0]?.ref);
 });
 
 /* ================================================================
-   D. CAPTURAS: CELULAR Y TABLETA (vertical y horizontal) + PROTOTIPO
+   D. TRANSICIONES Y AJUSTES
    ================================================================ */
-let peticionesAntesDelPrototipo = Infinity;
-await paso('D1. Capturas en celular y tableta, junto al prototipo', async () => {
-  const tamanos = [['celular', 390, 844], ['tableta-vertical', 820, 1180], ['tableta-horizontal', 1180, 820], ['celular-horizontal', 844, 390]];
-  peticionesAntesDelPrototipo = peticiones.length;
+let ventanasKyrien = '';
+await paso('D1. Ajustes: Estallido → KYRIEN a AGIOS; las ventanas de Kyrien se guardan', async () => {
+  await ajuste('anesthios.transicion', 'estallido');
+  verdad(await g(() => localStorage.getItem('anesthios.transicion')) === 'estallido', 'no se guardó');
+  ventanasKyrien = (await vivas()).map(t => t.corta).sort().join();
+  verdad(ventanasKyrien.length > 0, 'debía haber ventanas abiertas en Kyrien');
+  const c = await cambiarA('lecturas');
+  verdad(c.modo === 'estallido' && c.dur === 6000, JSON.stringify(c));
+  verdad((await vivas()).every(t => t.tema === 'agios') && !(await vivas()).some(t => t.tema === 'kyrien'), 'se ven ventanas de Kyrien en Agios');
+  await buscar('Lect. Gonz. 23');
+  await captura('D1-agios-tras-estallido');
+  return { ventanasKyrien, agios: (await vivas()).map(t => t.corta) };
+});
+await paso('D2. Ajustes: Al azar; AGIOS → KYRIEN restaura sus ventanas; ajustes persistentes y con los colores del tema', async () => {
+  await ajuste('anesthios.transicion', 'azar');
+  const c = await cambiarA('doctrina');
+  verdad(['implosion', 'estallido'].includes(c.modo), c.modo);
+  const v = (await vivas()).map(t => t.corta).sort().join();
+  verdad(v === ventanasKyrien, `ventanas de Kyrien: ${v} ≠ ${ventanasKyrien}`);
+  const c2 = await cambiarA('lecturas');
+  verdad((await vivas()).map(t => t.corta).sort().join() === 'E·23,L·23,S·23', 'ventanas de Agios no restauradas');
+  await page.reload(); await listo();
+  await entrarA('doctrina');
+  await page.click('#btnMenu'); await page.waitForSelector('#hoja.abierta .ajustes');
+  const marcado = await page.$eval('.ajustes input[name="anesthios.transicion"]:checked', i => i.value);
+  const panelFondo = await page.$eval('#hoja .caja', e => getComputedStyle(e).backgroundColor);
+  await captura('D2-ajustes-tema-kyrien');
+  await page.click('#cerrarHoja');
+  verdad(marcado === 'azar', 'ajuste no persistió: ' + marcado);
+  verdad(panelFondo === 'rgb(58, 43, 29)', 'el panel de ajustes no toma el color de Kyrien: ' + panelFondo);
+  await ajuste('anesthios.transicion', 'implosion');
+  return { modos: [c.modo, c2.modo], panelFondo };
+});
+
+/* ================================================================
+   E. MENÚ NEBULOSA
+   ================================================================ */
+await paso('E1. Volver al menú (tocar ANESTHIOS), entrar al otro asistente; las ventanas de cada uno se restauran', async () => {
+  await buscar('Te fallé');
+  const kyr = (await vivas()).map(t => t.corta).sort().join();
+  const n0 = await g(() => window.__agios.nebulosa);
+  await page.click('#aInicio');
+  await page.waitForTimeout(1500); await captura('E1a-deshaciendose');
+  await page.waitForFunction(() => !window.__agios.viaje && window.__agios.enMenu, null, { timeout: 120000, polling: 100 });
+  verdad(await g(() => window.__agios.nebulosa) > n0, 'la nebulosa no se dibuja en el menú');
+  verdad(await page.isVisible('#menu:not(.fuera)'), 'el menú no apareció');
+  await captura('E1b-menu');
+  // entrar a Agios: nacimiento estelar (caos → acreción → calma)
+  await page.click('.orbe[data-col="lecturas"]');
+  await page.waitForTimeout(2000); await captura('E1c-caos');
+  await page.waitForTimeout(2600); await captura('E1d-acrecion');
+  await page.waitForTimeout(2600); await captura('E1e-calma');
+  await page.waitForFunction(() => !window.__agios.viaje && window.__agios.activa === 'lecturas', null, { timeout: 150000, polling: 100 });
+  const n1 = await g(() => window.__agios.nebulosa); await page.waitForTimeout(800);
+  verdad(await g(() => window.__agios.nebulosa) === n1, 'la nebulosa sigue dibujándose fuera del menú');
+  await buscar('Lect. Gonz. 40');
+  const ag = (await vivas()).map(t => t.corta).sort().join();
+  await volverAlMenu(); await entrarA('doctrina');
+  verdad((await vivas()).map(t => t.corta).sort().join() === kyr, 'ventanas de Kyrien no restauradas');
+  await volverAlMenu(); await entrarA('lecturas');
+  verdad((await vivas()).map(t => t.corta).sort().join() === ag, 'ventanas de Agios no restauradas');
+  return { kyrien: kyr, agios: ag };
+});
+
+await paso('E2. Ajuste «Al abrir la app: entrar al último asistente usado»', async () => {
+  await cambiarA('doctrina');                          // el último usado será Kyrien
+  await ajuste('anesthios.inicio', 'ultimo');
+  let s;
+  try {
+    await page.reload(); await listo();
+    await page.waitForTimeout(800);
+    s = await g(() => ({ enMenu: window.__agios.enMenu, activa: window.__agios.activa, tema: window.__agios.tema }));
+  } finally {
+    await ajuste('anesthios.inicio', 'menu');
+  }
+  verdad(!s.enMenu && s.activa === 'doctrina' && s.tema === 'tema-kyrien', JSON.stringify(s));
+  await page.reload(); await listo();
+  verdad(await g(() => window.__agios.enMenu), 'debía volver a abrir en el menú');
+  return s;
+});
+
+await paso('E3. Una tercera colección ficticia en el registro aparece sola como orbe (sin tocar el menú)', async () => {
+  const c2 = await browser.newContext({ ignoreHTTPSErrors: !!ESPEJO, viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+  const p2 = await c2.newPage(); vigilar(p2);
+  await p2.route('**/js/colecciones.js', async r => {
+    const res = await r.fetch(); let b = await res.text();
+    b = b.replace("];\n\nexport const coleccion", "  { id: 'prueba3', asistente: 'Tercero', subtitulo: 'Colección ficticia', nombre: 'Prueba', escena: 'agios', analizador: 'lecturas', tema: 'agios' },\n];\n\nexport const coleccion");
+    await r.fulfill({ response: res, body: b, headers: { ...res.headers(), 'content-type': 'text/javascript' } });
+  });
+  const salida = {};
+  for (const [nombre, w, h] of [['vertical', 390, 844], ['horizontal', 844, 390], ['tableta', 1180, 820]]) {
+    await p2.setViewportSize({ width: w, height: h });
+    await p2.goto(URL_APP); await p2.waitForFunction(() => window.__agios); await p2.waitForTimeout(600);
+    const cajas = await p2.$$eval('.orbe', os => os.map(o => { const r = o.querySelector('.bola').getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; }));
+    const solapan = cajas.some((a, i) => cajas.some((b, j) => j > i && a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]));
+    const dentro = cajas.every(([l, t, r, b]) => l >= 0 && t >= 0 && r <= w && b <= h);
+    await p2.screenshot({ path: path.join(SALIDA, `E3-tres-orbes-${nombre}.png`) });
+    verdad(cajas.length === 3 && !solapan && dentro, `${nombre}: ${JSON.stringify(cajas)}`);
+    salida[nombre] = cajas.length;
+  }
+  await c2.close();
+  return salida;
+});
+
+await paso('E4. Sin WebGL 2: menú estático, entrar y cambiar con fundido', async () => {
+  const b2 = await chromium.launch({ env, args: [...ARGS, '--disable-webgl2'] });
+  const c2 = await b2.newContext({ ignoreHTTPSErrors: !!ESPEJO, viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+  const p2 = await c2.newPage();
+  const err2 = []; p2.on('pageerror', e => err2.push(e.message));
+  await p2.goto(URL_APP); await p2.waitForFunction(() => window.__agios);
+  const w2 = await p2.evaluate(() => window.__agios.webgl2);
+  await p2.screenshot({ path: path.join(SALIDA, 'E4a-sin-webgl-menu.png') });
+  await p2.click('.orbe[data-col="doctrina"]');
+  await p2.waitForFunction(() => !window.__agios.viaje && window.__agios.activa === 'doctrina', null, { timeout: 10000 });
+  await p2.click('#selector button[data-col="lecturas"]');
+  const m = await p2.waitForFunction(() => window.__agios.cambio?.modo, null, { timeout: 3000 }).then(h => h.jsonValue());
+  await p2.waitForFunction(() => !window.__agios.cambio && window.__agios.activa === 'lecturas', null, { timeout: 10000 });
+  await p2.screenshot({ path: path.join(SALIDA, 'E4b-sin-webgl-agios.png') });
+  await b2.close();
+  verdad(w2 === false && m === 'fundido' && !err2.length, JSON.stringify({ w2, m, err2 }));
+  return { webgl2: w2, cambio: m };
+});
+
+/* ================================================================
+   F. SIN CONEXIÓN, PRIVACIDAD, CONSOLA Y CAPTURAS
+   ================================================================ */
+await paso('F1. Sin conexión: menú, Kyrien (exacta y por significado), tipografías y transición', async () => {
+  verdad(await g(() => !!navigator.serviceWorker.controller), 'el service worker no controla la página');
+  await srv.cerrar();
+  const previo = srv.registro;
+  await page.reload(); await listo();
+  await entrarA('doctrina');
+  await encender();
+  const fuentes = await page.evaluate(async () => { await document.fonts.load("600 20px 'Cinzel'"); await document.fonts.load("italic 500 15px 'Cormorant Garamond'"); await document.fonts.load("600 20px 'Rajdhani'");
+    return [document.fonts.check("600 20px 'Cinzel'"), document.fonts.check("italic 500 15px 'Cormorant Garamond'"), document.fonts.check("600 20px 'Rajdhani'")]; });
+  const a = await buscar('Te fallé');
+  const b = await buscar('hombres que lanzan mallas desde un bote para capturar pescado');
+  await captura('F1-sin-conexion-kyrien');
+  const c = await cambiarA('lecturas');
+  srv = await iniciar({ raizApp: RAIZ, espejo: ESPEJO }); srv.registro.unshift(...previo);
+  verdad(fuentes.every(Boolean), 'tipografías sin conexión: ' + fuentes);
+  verdad(a.tarjetas[0]?.ref === 'Crónicas · “Te fallé”' && temaDeTexto(b.tarjetas[0]?.texto || '') === 'mar', 'búsquedas sin conexión');
+  return { fuentes, transicion: c.modo };
+});
+
+await paso('F2. Capturas en celular y tableta junto a los prototipos', async () => {
   const proto = await ctx.newPage();
-  await proto.goto(URL_APP + 'prototipo/anesthios/index.html');
-  for (const [nombre, w, h] of tamanos) {
+  const pares = [['kyrien', 'prototipo/kyrien/index.html'], ['menu', 'prototipo/menu/index.html'], ['transicion', 'prototipo/transicion/index.html']];
+  for (const [nombre, w, h] of [['celular', 390, 844], ['tableta-vertical', 820, 1180], ['tableta-horizontal', 1180, 820]]) {
     await page.setViewportSize({ width: w, height: h });
-    await cerrarVentanas();
-    await buscar('Lect. Gonz. 23');
-    await page.waitForTimeout(400);
-    await captura('D-app-' + nombre);
-    const v = await vivas();
-    const zona = await page.locator('#zona').boundingBox();
-    verdad(v.every(t => t.x >= 0 && t.y >= 0 && t.x + t.w <= zona.width + 1), `${nombre}: ventana fuera de la zona`);
-    verdad(await page.evaluate(() => document.getElementById('chip').getBoundingClientRect().height) < 32, `${nombre}: chip partido`);
-    await proto.setViewportSize({ width: w, height: h });
-    await proto.waitForTimeout(300);
-    await proto.screenshot({ path: path.join(SALIDA, 'D-prototipo-' + nombre + '.png') });
+    await page.reload(); await listo(); await page.waitForTimeout(1200);
+    await captura(`F2-app-menu-${nombre}`);
+    await entrarA('doctrina'); await encender(); await buscar('Te fallé'); await page.waitForTimeout(300);
+    await captura(`F2-app-kyrien-${nombre}`);
+    const v = await vivas(); const zona = await page.locator('#zona').boundingBox();
+    verdad(v.every(t => t.x >= 0 && t.x + t.w <= zona.width + 1), `${nombre}: ventana fuera de la zona`);
+    verdad(await page.evaluate(() => document.getElementById('chip').getBoundingClientRect().height) < 40, `${nombre}: chip partido`);
+    for (const [pn, url] of pares) {
+      await proto.setViewportSize({ width: w, height: h });
+      await proto.goto(URL_APP + url); await proto.waitForTimeout(1500);
+      await proto.screenshot({ path: path.join(SALIDA, `F2-prototipo-${pn}-${nombre}.png`) });
+    }
   }
   await proto.close();
   await page.setViewportSize({ width: 390, height: 844 });
 });
 
-await paso('D2. Privacidad: ninguna petición lleva texto del documento', async () => {
+await paso('F3. Privacidad: ninguna petición lleva texto de los documentos', async () => {
   const hosts = new Set(['localhost:8080', 'cdn.jsdelivr.net', 'huggingface.co', 'fonts.googleapis.com', 'fonts.gstatic.com']);
   const malas = peticiones.filter(p => {
     const u = new URL(p.url);
     if (u.protocol === 'blob:' || u.protocol === 'data:') return false;
-    return p.metodo !== 'GET' || p.cuerpo || !hosts.has(u.host) || /alfarero|pescadores|Santa%20Lectura/i.test(p.url);
+    return p.metodo !== 'GET' || p.cuerpo || !hosts.has(u.host) || /alfarero|pescadores|sacrist|Te%20fall/i.test(p.url);
   });
-  // La app usa sus tipografías locales: Google Fonts solo lo pide el prototipo.
-  const deLaApp = peticiones.slice(0, peticionesAntesDelPrototipo).filter(p => /fonts\.(googleapis|gstatic)/.test(p.url));
+  const deLaApp = peticiones.filter(p => /fonts\.(googleapis|gstatic)/.test(p.url) && !/prototipo/.test(p.url));
   const servidor = srv.registro.filter(r => r.metodo !== 'GET' || r.bytesCuerpo > 0);
   verdad(!malas.length, JSON.stringify(malas.slice(0, 5)));
   verdad(!servidor.length, JSON.stringify(servidor.slice(0, 5)));
-  verdad(!deLaApp.length, 'la app pidió Google Fonts: ' + deLaApp.map(p => p.url));
-  return { peticionesNavegador: peticiones.length, googleFontsDeLaApp: deLaApp.length };
+  return { peticionesNavegador: peticiones.length };
 });
-
-await paso('D3. Sin errores en la consola de la app', async () => {
-  const reales = errores.filter(e => !/ERR_CONNECTION_REFUSED|Failed to load resource/.test(e));
+await paso('F4. Sin errores en la consola de la app', async () => {
+  const reales = errores.filter(e => !/ERR_CONNECTION_REFUSED|Failed to load resource|ERR_INTERNET_DISCONNECTED/.test(e));
   verdad(!reales.length, JSON.stringify(reales.slice(0, 5)));
   return { ignorados: errores.length - reales.length };
 });
