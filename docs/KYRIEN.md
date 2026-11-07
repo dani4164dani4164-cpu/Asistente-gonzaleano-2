@@ -206,8 +206,9 @@ El texto de la Doctrina cita **215 veces** a las Lecturas (`(Lect. Gonz. 44)`,
 
 Al abrir la app ya **no** se entra directo a un asistente. Se muestra el menú:
 
-- Arriba, en grande, **ANESTHIOS** (degradado turquesa → violeta → rosa →
-  naranja) con «Asistentes Gonzaleanos» debajo, y abajo «ELIGE UN ASISTENTE».
+- Arriba, en grande, **ANESTHIOS** en **platino azulado** (degradado metálico
+  vertical blanco → platino → acero azulado, con un brillo azul suave; ver el
+  prototipo) con «Asistentes Gonzaleanos» debajo, y abajo «ELIGE UN ASISTENTE».
 - De fondo, la **nebulosa** de `prototipo/menu/nebulosa.js`: gas de colores
   (turquesa, azul, violeta, magenta, rosa, naranja, óxido), polvo cósmico que
   respira y estrellas con destellos en cruz.
