@@ -201,3 +201,37 @@ El texto de la Doctrina cita **215 veces** a las Lecturas (`(Lect. Gonz. 44)`,
   Agios**; sin errores de consola; modo sin conexión.
 - Capturas en celular y tableta comparadas con los prototipos.
 - Commit en una rama nueva y pull request con resumen.
+
+## 8. Menú de inicio: la nebulosa (prototipo: `prototipo/menu/`)
+
+Al abrir la app ya **no** se entra directo a un asistente. Se muestra el menú:
+
+- Arriba, en grande, **ANESTHIOS** (degradado turquesa → violeta → rosa →
+  naranja) con «Asistentes Gonzaleanos» debajo, y abajo «ELIGE UN ASISTENTE».
+- De fondo, la **nebulosa** de `prototipo/menu/nebulosa.js`: gas de colores
+  (turquesa, azul, violeta, magenta, rosa, naranja, óxido), polvo cósmico que
+  respira y estrellas con destellos en cruz.
+- Un **orbe** por asistente, generado desde el registro de colecciones (nombre
+  y subtítulo, con el color de su tema). Hoy son Agios y Kyrien; una colección
+  nueva debe aparecer sola. Los orbes se acomodan para no encimarse en celular
+  ni en tableta, vertical u horizontal.
+- **Entrar** (≈5 s): el polvo de la nebulosa fluye y **dibuja al asistente**
+  (usa `FORMAS` de `transicion.js`, exportado) mientras el gas se condensa.
+  La cámara de la nebulosa se encuadra sobre la zona del asistente
+  (`encuadre(rect)`), para que el polvo forme la figura justo donde aparecerá.
+  A la mitad cambia el mundo al tema del asistente. Al final se materializa el
+  asistente (`S.apertura` de 1 a 0): Kyrien rearma su roca y Agios cierra su núcleo.
+- **Volver** (≈5 s): tocar **ANESTHIOS** en la barra superior. El asistente se
+  deshace en polvo que **vuelve a ser la nebulosa**, el gas se enciende de
+  nuevo y reaparece el menú. Las ventanas abiertas del asistente se guardan y
+  se restauran al volver a entrar.
+- Mientras se entra o se vuelve no se puede tocar nada más. Fuera del menú, la
+  nebulosa deja de dibujarse (no gasta GPU).
+- El selector AGIOS | KYRIEN dentro de la app sigue funcionando para cambiar
+  directo entre asistentes, con Implosión o Estallido.
+- Opcional en Ajustes: «Al abrir la app: mostrar el menú (por defecto) / entrar
+  al último asistente usado».
+- Sin WebGL 2: un menú estático con los orbes y un fundido simple.
+- Verificación adicional: el menú al abrir, entrar a cada asistente, volver,
+  entrar al otro, ventanas restauradas, y que una tercera colección ficticia
+  añadida al registro aparezca como orbe sin tocar el menú.
