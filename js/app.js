@@ -1,7 +1,10 @@
 /* ============================================================
-   Agios — página principal: máquina de estados, coreografía de
-   la escena, subida y procesamiento del documento, búsqueda,
-   lector y menú. Basado en el prototipo aprobado (prototipo/).
+   Anesthios — página principal: máquina de estados del asistente,
+   coreografía de la escena, subida y procesamiento del documento,
+   búsqueda, ventanas, paneles, lector y menú.
+   Interfaz según prototipo/anesthios/ (aprobado).
+   Los datos guardados (IndexedDB «agios», colección «lecturas») no
+   cambian: «Anesthios» es solo el nombre visible de la app.
    ============================================================ */
 import * as THREE from 'three';
 import { COLECCIONES, coleccion } from './colecciones.js';
@@ -9,8 +12,9 @@ import { ESCENAS } from './escenas/index.js';
 import { cargarAnalizador } from './analizadores/index.js';
 import { leerDocx } from './docx.js';
 import * as db from './db.js';
-import { escaparHtml, resaltarHtml } from './texto.js';
 import { crearLector } from './lector.js';
+import { crearVentanas } from './ventanas.js';
+import { crearTablero } from './tablero.js';
 import { abrirHoja, cerrarHoja, hojaAbierta, htmlEstructura, htmlMenu } from './paneles.js';
 
 const $ = id => document.getElementById(id);
@@ -21,7 +25,9 @@ let guardada = null;
 try { guardada = localStorage.getItem('agios.coleccion'); } catch {}
 const COL = coleccion(guardada) || COLECCIONES[0];
 const A = await cargarAnalizador(COL.analizador);
-$('nombreColeccion').textContent = COL.nombre;
+const ASISTENTE = COL.asistente || COL.nombre;
+$('nombreAsistente').textContent = ASISTENTE.toUpperCase();
+$('subtituloAsistente').textContent = (COL.subtitulo || COL.nombre).toUpperCase();
 $('subirTexto').textContent = COL.id === 'lecturas'
   ? 'Elige el .docx de Lecturas y Evangelios Gonzaleanos'
   : `Elige el .docx de ${COL.nombre}`;
@@ -43,6 +49,26 @@ async function cargarPiezas() {
 }
 const hayDocumento = () => piezas.length > 0;
 const lector = crearLector({ A, piezas: () => piezas });
+const tablero = crearTablero();
+const ventanas = crearVentanas({
+  zona, cont: $('resultados'), escena, S,
+  alVerCompleto: r => lector.abrir(r.pieza, r.pasaje),
+  alCambiar: lista => { tablero.abiertas(lista); $('cerrarTodas').classList.toggle('ver', lista.length > 1); },
+});
+$('cerrarTodas').onclick = () => ventanas.cerrarTodas();
+
+/* Paneles con los datos YA guardados de la colección (funciona desde el
+   primer momento con el documento que el usuario subió antes). */
+async function refrescarTablero() {
+  const [reg, pend, total] = await Promise.all([
+    db.obtener('colecciones', COL.id),
+    db.contar('fragmentos', 'pend', COL.id),
+    db.contar('fragmentos', 'coleccion', COL.id),
+  ]);
+  tablero.coleccion({ conjuntos: reg?.informe?.datos?.conjuntos ?? null, fecha: reg?.actualizado ?? reg?.documento?.fecha ?? null });
+  const pct = Math.floor(100 * (total - pend) / (total || 1));
+  tablero.indice(!reg ? 'sin documento' : !pend ? '● listo' : reg.estado === 'sin-modelo' ? `pendiente ${pct}%` : `indexando ${pct}%`);
+}
 
 /* ---------- Worker ---------- */
 const worker = new Worker(new URL('./trabajador.js', import.meta.url), { type: 'module' });
@@ -56,6 +82,7 @@ worker.onmessage = ({ data: m }) => {
       if (modo !== 'procesando') break;
       if (m.fase === 'indexando') {
         etiqueta(`procesando ${Math.floor(100 * m.pct)}% · ${m.hechas}/${m.total} piezas`);
+        tablero.indice(`indexando ${Math.floor(100 * m.pct)}%`);
         const h = $('hint').textContent;
         if (m.pct < 1 && (!h || h.startsWith('Preparando'))) pista('Creando el índice para buscar por significado. Con un documento grande puede tardar varios minutos; si se interrumpe, continuará donde se quedó.');
       }
@@ -69,6 +96,7 @@ worker.onmessage = ({ data: m }) => {
     case 'estructura':
       ultimoInforme = m.informe;
       cargarPiezas();
+      refrescarTablero();
       pista(m.aIndexar
         ? `Estructura detectada: ${m.informe.datos.conjuntos} conjuntos. Preparando la búsqueda por significado de ${m.aIndexar} pieza(s)…`
         : `Estructura detectada: ${m.informe.datos.conjuntos} conjuntos. No hubo cambios que procesar.`);
@@ -91,14 +119,15 @@ worker.onmessage = ({ data: m }) => {
 };
 worker.onerror = ev => { console.error(ev); if (modo === 'procesando') fallo('no se pudo procesar', 'Error interno del procesador: ' + (ev.message || '')); };
 
-/* ---------- Máquina de estados de Agios ---------- */
+/* ---------- Máquina de estados del asistente ---------- */
 let modo = 'apagado';
-const etiquetas = { apagado: 'apagado', activo: 'activo', esperando: 'esperando archivo', procesando: 'procesando…',
-  exito: 'archivo listo', error: 'no se pudo procesar', buscando: 'buscando…' };
+const etiquetas = { apagado: 'apagado', activo: 'activo', esperando: 'esperando archivo', procesando: 'procesando',
+  exito: 'archivo listo', error: 'no válido', buscando: 'buscando' };
 function poner(m, texto) {
   modo = m; etiqueta(texto || etiquetas[m]);
-  $('estado').className = m === 'exito' ? 'ok' : m === 'error' ? 'err' : '';
   const on = m !== 'apagado';
+  $('chip').className = 'chip-estado' + (m === 'exito' ? ' ok' : m === 'error' ? ' err' : on ? ' on' : '');
+  $('tituloCol').classList.toggle('apagado', !on);
   meta.energy = on ? 1 : 0;
   meta.mult = { procesando: 3, buscando: 2 }[m] || 1;
   meta.apertura = m === 'esperando' ? 1 : 0;
@@ -107,11 +136,13 @@ function poner(m, texto) {
   if (m === 'esperando') poner.t = setTimeout(() => $('subir').classList.add('abierta'), 380); else $('subir').classList.remove('abierta');
   const libre = m === 'activo';
   $('consulta').disabled = $('btnSubir').disabled = $('btnBuscar').disabled = !libre;
-  $('consulta').placeholder = !on ? 'Toca a Agios para encenderlo'
-    : m === 'procesando' ? 'Agios está procesando tu documento…'
-    : hayDocumento() ? 'Pídele a Agios una lectura, un evangelio o una idea…' : 'Sube tu documento con 📎';
-  if (!on) pista('Toca a Agios para encenderlo');
+  document.querySelectorAll('#sugerencias button:not(#cerrarTodas)').forEach(b => { b.disabled = !libre; });
+  $('consulta').placeholder = !on ? `Toca a ${ASISTENTE} para encenderlo`
+    : m === 'procesando' ? `${ASISTENTE} está procesando tu documento…`
+    : hayDocumento() ? `Pídele a ${ASISTENTE} una lectura, un evangelio o una idea…` : 'Sube tu documento con 📎';
+  if (!on) pista('');
   else if (m === 'activo' && !pista.fija) pista(hayDocumento() ? '' : 'Toca 📎 para subir tu documento .docx');
+  if (m === 'apagado' && actualizacionPendiente) recargarConVersionNueva();
 }
 function etiqueta(t) { $('estado').textContent = t; }
 function pista(t, clase = '', fijaMs = 0) {
@@ -124,11 +155,11 @@ function destellar(hex) { S.destello.color.set(hex); S.destello.k = 1; S.destell
 /* Encender / apagar con un toque sobre Agios */
 function alternar() {
   if (modo === 'apagado') { poner('activo'); if (hayDocumento()) worker.postMessage({ tipo: 'precargar' }); }
-  else if (modo === 'activo') { limpiarResultados(); poner('apagado'); }
+  else if (modo === 'activo') { ventanas.cerrarTodas(); poner('apagado'); }
 }
 
 /* ---------- Subir archivo ---------- */
-$('btnSubir').onclick = () => { limpiarResultados(); colocarVentana(); poner('esperando'); };
+$('btnSubir').onclick = () => { colocarVentana(); poner('esperando'); };   // subir ya no cierra las ventanas
 $('cancelarSubir').onclick = () => poner('activo');
 $('elegir').onclick = () => $('archivo').click();
 $('archivo').onchange = ev => { const f = ev.target.files[0]; ev.target.value = ''; if (f) procesarArchivo(f); };
@@ -175,6 +206,7 @@ async function leerYEnviar(buffer, documento) {
 
 function fallo(texto, detalle, informe = null) {
   soltarPantalla();
+  refrescarTablero();
   destellar('#ff4d5e'); poner('error', texto);
   pista(detalle || '', 'err', 9000);
   if (informe) setTimeout(() => abrirHoja('Estructura detectada', htmlEstructura(informe, { error: true }), { clase: 'err' }), 700);
@@ -184,6 +216,7 @@ function fallo(texto, detalle, informe = null) {
 async function terminarBien(m) {
   soltarPantalla();
   await cargarPiezas();
+  refrescarTablero();
   destellar('#3ddc84'); poner('exito');
   if (m.semantica === 'pendiente')
     pista('Documento listo para búsqueda exacta. La búsqueda por significado se completará cuando haya conexión para descargar el modelo (una sola vez).', 'ok', 12000);
@@ -222,12 +255,12 @@ function pedirBusqueda(consulta) {
     worker.postMessage({ tipo: 'buscar', id, coleccion: COL.id, analizador: COL.analizador, consulta });
   });
 }
-$('form').onsubmit = async ev => {
-  ev.preventDefault();
-  const q = $('consulta').value.trim();
+async function buscar(q) {
+  q = (q || '').trim();
   if (!q || modo !== 'activo') return;
+  $('consulta').value = q;
   $('consulta').blur();
-  limpiarResultados(); poner('buscando'); pista('');
+  poner('buscando'); pista('');                       // las ventanas anteriores se quedan
   const t0 = performance.now();
   const r = await pedirBusqueda(q);
   const resto = 900 - (performance.now() - t0);        // que se vea la búsqueda (x2)
@@ -236,34 +269,40 @@ $('form').onsubmit = async ev => {
   poner('activo', n ? `${n} resultado${n === 1 ? '' : 's'}` : 'sin resultados');
   if (r.aviso) pista(r.aviso, n ? '' : 'err', 8000);
   else if (!n) pista('No encontré ese texto en tu documento.', 'err', 6000);
-  mostrar(r.resultados);
-};
-
-function limpiarResultados() { $('resultados').innerHTML = ''; }
-function mostrar(lista) {
-  const cont = $('resultados'), zr = zona.getBoundingClientRect();
-  lista.forEach((r, i) => {
-    const t = document.createElement('div'); t.className = 'tarjeta';
-    t.innerHTML = `<span class="ref">${escaparHtml(r.ref)}</span><span class="tipo">${escaparHtml(r.tipo)}</span>` +
-      `<p>${resaltarHtml(r.extracto.texto, r.extracto.intervalos)}</p>` +
-      `<div class="acciones"><span class="origen">${escaparHtml(r.origen)}</span><button type="button">Ver completo</button></div>`;
-    t.querySelector('button').onclick = () => lector.abrir(r.pieza, r.pasaje);
-    cont.append(t);
-    // Una partícula se desprende de un anillo y viaja hasta donde nacerá la ventana
-    setTimeout(() => {
-      const o = escena.puntoDeAnillo(i, S.T * 0.001 + i * 2.1);
-      const d = t.getBoundingClientRect();
-      const dx = d.left - zr.left + d.width / 2, dy = d.top - zr.top + d.height / 2 - cont.scrollTop * 0;
-      t.style.transformOrigin = '50% 50%';
-      const ch = document.createElement('div'); ch.className = 'chispa'; $('capa').append(ch);
-      ch.animate([{ left: o.x + 'px', top: o.y + 'px', transform: 'scale(1)' },
-        { left: (o.x + dx) / 2 + (i % 2 ? 40 : -40) + 'px', top: (o.y + dy) / 2 - 30 + 'px', transform: 'scale(1.4)', offset: .55 },
-        { left: dx + 'px', top: dy + 'px', transform: 'scale(2.2)' }],
-      { duration: 700, easing: 'cubic-bezier(.5,0,.3,1)', fill: 'forwards' })
-        .onfinish = () => { ch.remove(); t.classList.add('visible'); };
-    }, i * 260);
-  });
+  ventanas.mostrar(r.resultados.map(x => ({ ...x, corta: corta(x) })));
+  recordar(q);
 }
+$('form').onsubmit = ev => { ev.preventDefault(); buscar($('consulta').value); };
+
+/* Etiqueta corta de una pieza para el panel: L·23, S·87, E·24 */
+function corta(r) {
+  const t = A.TIPOS[r.tipoPieza];
+  return t ? `${(t.corto || t.nombre)[0].toUpperCase()}·${r.numero}` : 'Intro';
+}
+
+/* ---------- Sugerencias: últimas 3 búsquedas (o ejemplos) e Índice ---------- */
+const CLAVE_RECIENTES = 'anesthios.recientes';
+const EJEMPLOS = ['Evang. Gonz. 145', 'salmo 87', 'la misericordia del Padre'];
+function leerRecientes() {
+  try { const v = JSON.parse(localStorage.getItem(CLAVE_RECIENTES) || '[]'); return Array.isArray(v) ? v.filter(x => typeof x === 'string').slice(0, 3) : []; }
+  catch { return []; }
+}
+function recordar(q) {
+  const lista = [q, ...leerRecientes().filter(x => x.toLowerCase() !== q.toLowerCase())].slice(0, 3);
+  try { localStorage.setItem(CLAVE_RECIENTES, JSON.stringify(lista)); } catch {}
+  pintarSugerencias();
+}
+function pintarSugerencias() {
+  const r = leerRecientes();
+  const cont = $('recientes'); cont.innerHTML = '';
+  for (const q of r.length ? r : EJEMPLOS) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.q = q; b.textContent = q; b.disabled = modo !== 'activo';
+    b.onclick = () => buscar(q);
+    cont.append(b);
+  }
+}
+$('sugIndice').onclick = () => lector.abrirIndice();
 
 /* ---------- Menú ---------- */
 $('btnMenu').onclick = abrirMenu;
@@ -295,7 +334,7 @@ async function abrirMenu() {
         if (!confirm(`¿Borrar la colección «${cols.find(c => c.id === id).nombre}» de este dispositivo? Tendrás que volver a subir el documento.`)) break;
         await db.borrarColeccion(id);
         worker.postMessage({ tipo: 'invalidar', coleccion: id });
-        if (id === COL.id) { piezas = []; limpiarResultados(); lector.cerrar(); if (modo === 'activo') poner('activo'); }
+        if (id === COL.id) { piezas = []; ventanas.cerrarTodas(); lector.cerrar(); refrescarTablero(); if (modo === 'activo') poner('activo'); }
         abrirMenu();
         break;
     }
@@ -335,19 +374,45 @@ function loop(t) {
   S.T += dT * 0.85 * S.mult * (0.15 + 0.85 * S.energy);
   if (!down) { S.rot += S.rotVel; S.rotVel *= Math.pow(0.94, dT / 16.7); }
   if (modo === 'esperando') colocarVentana();
+  tablero.cuadro(S, dT);
   escena.dibujar(t, dT); requestAnimationFrame(loop);
 }
 
 /* ---------- Arranque ---------- */
+let actualizacionPendiente = false;
 await cargarPiezas().catch(() => {});
-poner('apagado'); requestAnimationFrame(loop);
+await refrescarTablero().catch(() => {});
+poner('apagado'); pintarSugerencias(); requestAnimationFrame(loop);
 reanudarSiHaceFalta().catch(e => console.error(e));
 
-/* Service worker: caché versionada para uso sin conexión */
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW', e));
+/* Service worker: caché versionada para uso sin conexión.
+   Cuando se instala una versión nueva de la app, se recarga en un momento
+   tranquilo (Agios apagado o la app en segundo plano), nunca a media tarea.
+   Los datos guardados no se tocan. */
+function recargarConVersionNueva() {
+  if (modo === 'procesando' || modo === 'buscando') return;
+  location.reload();
+}
+if ('serviceWorker' in navigator) {
+  const habiaControlador = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!habiaControlador) return;              // primera instalación: nada que recargar
+    actualizacionPendiente = true;
+    if (modo === 'apagado') recargarConVersionNueva();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && actualizacionPendiente) recargarConVersionNueva();
+  });
+  // Buscar versión nueva al abrir y cada vez que se vuelve a la app (el
+  // navegador por sí solo lo hace con demora).
+  const buscarVersion = () => navigator.serviceWorker.getRegistration().then(r => r?.update()).catch(() => {});
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') buscarVersion(); });
+  navigator.serviceWorker.register('./sw.js').then(buscarVersion).catch(e => console.warn('SW', e));
+}
 
 /* Estado de solo lectura para diagnóstico y pruebas automáticas */
 Object.defineProperty(window, '__agios', { value: Object.freeze({
   get modo() { return modo; }, get destello() { return { k: S.destello.k, color: '#' + S.destello.color.getHexString() }; },
   get meta() { return { ...meta }; }, get piezas() { return piezas.length; }, coleccion: COL.id,
+  get ventanas() { return ventanas.abiertas(); }, get S() { return { rot: S.rot, energy: S.energy }; }, app: 'Anesthios',
 }) });

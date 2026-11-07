@@ -4,15 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#07070d">
-<meta name="description" content="Agios: localiza, busca y lee las Lecturas, Salmos y Evangelios Gonzaleanos de tu documento, en tu dispositivo.">
+<meta name="description" content="Anesthios: asistentes gonzaleanos. Agios localiza, busca y lee las Lecturas, Salmos y Evangelios Gonzaleanos de tu documento, en tu dispositivo.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Agios">
-<title>Agios</title>
+<meta name="apple-mobile-web-app-title" content="Anesthios">
+<title>Anesthios</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./iconos/icono.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="./iconos/icono-180.png">
+<link rel="preload" href="./fuentes/rajdhani-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="./fuentes/jetbrains-mono-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./css/fuentes.css">
 <link rel="stylesheet" href="./css/estilos.css">
 <script type="importmap">
 {"imports":{
@@ -22,39 +25,77 @@
 </script>
 </head>
 <body>
-<header>
-  <h1>AGIOS<small id="nombreColeccion">Lecturas y Evangelios</small></h1>
-  <div class="der">
-    <span id="estado">apagado</span>
-    <button id="btnMenu" type="button" title="Menú" aria-label="Menú">☰</button>
-  </div>
+
+<header class="barra-sup">
+  <div class="marca">ANESTHIOS<small>ASISTENTES GONZALEANOS</small></div>
+  <div class="esp"></div>
+  <div class="chip-estado" id="chip"><i></i><span id="estado">apagado</span></div>
+  <button id="btnMenu" class="boton-menu" type="button" title="Menú" aria-label="Menú">☰</button>
 </header>
+<div class="regla"></div>
 
 <div id="zona">
-  <div id="stage"></div>
-  <div id="capa">
-    <div id="resultados"></div>
-    <div id="subir">
-      <h2>Subir archivo</h2>
-      <p id="subirTexto">Elige el .docx de Lecturas y Evangelios Gonzaleanos</p>
-      <div class="fila">
-        <button id="cancelarSubir" type="button" style="flex:1">Cancelar</button>
-        <button id="elegir" class="prim" type="button" style="flex:1.4">Elegir archivo</button>
-      </div>
-      <input id="archivo" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
-    </div>
+  <div class="fondo"></div>
+  <div class="reticula">
+    <div class="aro"></div><div class="aro b"></div><div class="aro c"></div>
+    <div class="eje h"></div><div class="eje v"></div>
+    <span class="grado" style="left:50%;top:-5%;transform:translateX(-50%)">000</span>
+    <span class="grado" style="right:-7%;top:50%;transform:translateY(-50%)">090</span>
+    <span class="grado" style="left:50%;bottom:-5%;transform:translateX(-50%)">180</span>
+    <span class="grado" style="left:-7%;top:50%;transform:translateY(-50%)">270</span>
   </div>
-  <div id="hint">Toca a Agios para encenderlo</div>
+  <div id="stage"></div>
+  <div class="esquina a"></div><div class="esquina b"></div><div class="esquina c"></div><div class="esquina d"></div>
+
+  <div class="titulo-col apagado" id="tituloCol">
+    <h2 id="nombreAsistente">AGIOS</h2>
+    <div class="sub" id="subtituloAsistente">LECTURAS Y EVANGELIOS</div>
+    <div id="hint" role="status" aria-live="polite"></div>
+  </div>
+
+  <div class="panel-dato izq" id="panelColeccion">
+    <h3>COLECCIÓN</h3>
+    <div class="f"><span>Conjuntos</span><b id="dConjuntos">—</b></div>
+    <div class="f"><span>Abiertas</span><b id="dAbiertas">0</b></div>
+    <div class="abiertas" id="dLista">—</div>
+    <div class="f"><span>Índice</span><b id="dIndice">sin documento</b></div>
+    <div class="f"><span>Modo</span><b>local</b></div>
+  </div>
+  <div class="panel-dato der" id="panelSistema">
+    <h3>SISTEMA</h3>
+    <div class="f"><span>Energía</span><b id="dEnergia">0%</b></div>
+    <div class="f"><span>Documento</span><b id="dDoc">—</b></div>
+    <div class="f"><span>Hora</span><b id="dHora">--:--</b></div>
+    <div class="barras" id="barras"></div>
+  </div>
+
+  <div id="resultados"></div>
+  <div id="subir">
+    <h4>SUBIR ARCHIVO</h4>
+    <p id="subirTexto">Elige el .docx de Lecturas y Evangelios Gonzaleanos</p>
+    <div style="display:flex;gap:8px">
+      <button id="cancelarSubir" type="button" style="flex:1">Cancelar</button>
+      <button id="elegir" class="prim" type="button" style="flex:1.4">Elegir archivo</button>
+    </div>
+    <input id="archivo" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+  </div>
 </div>
 
-<form class="barra" id="form">
-  <button id="btnSubir" class="icono" type="button" title="Subir archivo" aria-label="Subir archivo" disabled>📎</button>
-  <input id="consulta" placeholder="Toca a Agios para encenderlo" autocomplete="off" enterkeyhint="search" disabled>
-  <button id="btnBuscar" class="icono prim" type="submit" title="Buscar" aria-label="Buscar" disabled>➤</button>
+<form class="consola" id="form">
+  <div class="sugerencias" id="sugerencias">
+    <button id="cerrarTodas" type="button">✕ Cerrar todas</button>
+    <span id="recientes" style="display:contents"></span>
+    <button id="sugIndice" type="button" data-a="indice">☰ Índice</button>
+  </div>
+  <div class="entrada">
+    <button id="btnSubir" class="icono" type="button" title="Subir archivo" aria-label="Subir archivo" disabled>📎</button>
+    <label class="campo"><span>›</span><input id="consulta" placeholder="Toca a Agios para encenderlo" autocomplete="off" enterkeyhint="search" disabled></label>
+    <button id="btnBuscar" class="icono prim" type="submit" title="Buscar" aria-label="Buscar" disabled>➤</button>
+  </div>
 </form>
 
 <div id="lector" role="dialog" aria-modal="true" aria-labelledby="lectorTitulo">
-  <header>
+  <header class="cab">
     <span id="lectorTitulo"></span>
     <button id="cerrarLector" type="button">Cerrar</button>
   </header>

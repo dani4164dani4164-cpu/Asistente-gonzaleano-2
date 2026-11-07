@@ -196,7 +196,7 @@ async function buscar({ id, coleccion, analizador, consulta }) {
     const p = datos.porId.get(r.pieza);
     const corto = B.recortar(r.pasaje.texto, r.pasaje.intervalos || []);
     return {
-      pieza: r.pieza, ...A.etiqueta(p), origen: r.origen,
+      pieza: r.pieza, tipoPieza: p.tipo, numero: p.numero, ...A.etiqueta(p), origen: r.origen,
       extracto: corto,
       pasaje: { parrafoIni: r.pasaje.parrafoIni, parrafoFin: r.pasaje.parrafoFin, intervalos: r.pasaje.intervalos, desde: r.pasaje.desde },
     };

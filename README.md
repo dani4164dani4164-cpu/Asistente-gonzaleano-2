@@ -1,14 +1,15 @@
-# Agios
+# Anesthios
 
-Agios es una web app instalable (PWA) para **localizar, buscar y leer** las
+**Anesthios** es una web app instalable (PWA) de asistentes gonzaleanos. Su
+primer asistente, **Agios**, sirve para **localizar, buscar y leer** las
 Lecturas, Salmos y Evangelios Gonzaleanos a partir de tu propio documento de
 Word (.docx).
 
-Agios **nunca redacta, resume ni interpreta**: solo encuentra y muestra el
+Anesthios **nunca redacta, resume ni interpreta**: solo encuentra y muestra el
 texto real del documento.
 
 > **Privacidad.** Tu documento se lee y se guarda **solo en tu dispositivo**.
-> Agios no envía su texto a ningún servidor: lo único que descarga de internet
+> Anesthios no envía su texto a ningún servidor: lo único que descarga de internet
 > es la propia app, sus librerías y el modelo de búsqueda.
 > **Los documentos jamás se suben a este repositorio**: el `.gitignore` bloquea
 > `*.docx`, `*.doc`, `*.pdf`, `*.odt`, `*.rtf` y las carpetas `datos/` y
@@ -32,16 +33,36 @@ texto real del documento.
   («el pastor que busca a la oveja perdida») y encuentra los pasajes que hablan
   de eso aunque no usen las mismas palabras.
 - Muestra de 2 a 5 resultados como ventanas que nacen de los anillos de Agios,
-  con la parte que coincide resaltada y el botón **Ver completo**.
+  con la parte que coincide resaltada y el botón **Ver completo**. Las ventanas
+  **se acumulan** entre búsquedas (cada una busca un hueco libre), **se mueven**
+  arrastrando su encabezado (⋮⋮), se cierran con **✕** o todas a la vez con
+  **✕ Cerrar todas**, y si buscas una pieza que ya está abierta no se duplica:
+  pasa al frente y destella. Apagar a Agios cierra todas.
+- Paneles en vivo: **COLECCIÓN** (conjuntos, ventanas abiertas como `L·23`,
+  `S·87`, `E·24`, estado del índice) y **SISTEMA** (energía, cuándo se subió el
+  documento, hora). Bajo el campo de búsqueda, tus últimas 3 búsquedas y el
+  acceso al **Índice**.
 - **Lector** con la pieza entera, anterior/siguiente, saltos entre Lectura,
   Salmo y Evangelio del mismo conjunto, e **índice** por número.
 - Funciona **sin internet** después de la primera carga.
+
+## Actualizaciones de la app (tus datos se conservan)
+
+Cuando se publica una versión nueva, la app se actualiza sola la próxima vez
+que la abres (o en cuanto apagas a Agios / la mandas a segundo plano).
+**No tienes que volver a subir ni procesar tu documento:** todo lo procesado
+vive en la base IndexedDB `agios` del dispositivo, cuyo nombre, versión y
+estructura no cambian entre versiones, y el modelo de búsqueda sigue en la
+caché del navegador. El service worker solo reemplaza los archivos de la app.
+(Por eso, aunque la app se llama Anesthios, algunos nombres internos siguen
+diciendo «agios»: cambiarlos borraría lo que ya tienes guardado.)
 
 ## Cómo instalarla (tableta o celular)
 
 1. Abre la dirección de la app en GitHub Pages
    (`https://<tu-usuario>.github.io/<este-repositorio>/`).
-2. **iPad / iPhone (Safari):** botón Compartir → «Agregar a pantalla de inicio».
+2. **iPad / iPhone (Safari):** botón Compartir → «Agregar a pantalla de inicio»
+   (aparecerá como «Anesthios»).
    **Android (Chrome):** menú ⋮ → «Instalar app» o «Agregar a pantalla principal».
 3. Ábrela desde el ícono. La primera vez necesita internet para guardar la app
    y descargar el modelo de búsqueda (~118 MB, una sola vez); después funciona
@@ -49,7 +70,7 @@ texto real del documento.
 
 ### Publicación (una sola vez, desde el navegador)
 
-La app se publica sola con GitHub Actions en cada cambio a la rama `main`
+Anesthios se publica sola con GitHub Actions en cada cambio a la rama `main`
 (`.github/workflows/pages.yml`). Solo hay que activarlo una vez:
 en GitHub, **Settings → Pages → Build and deployment → Source: «GitHub Actions»**.
 No hace falta ningún comando local.
@@ -117,14 +138,17 @@ recíproco) y se muestran de 2 a 5 resultados.
 
 ## Agregar una colección nueva
 
-Agios está organizado en **colecciones**. Cada una tiene su propio documento,
-su propio analizador y su propio modelo 3D («rostro»). Para agregar, por
-ejemplo, «Doctrina»:
+Anesthios está organizado en **colecciones**. Cada una tiene su propio
+asistente (nombre y subtítulo), su propio documento, su propio analizador y su
+propio modelo 3D («rostro»). Para agregar, por ejemplo, «Doctrina»:
 
-1. **Regístrala** en `js/colecciones.js`:
+1. **Regístrala** en `js/colecciones.js` (el `id` no debe cambiar nunca
+   después: es la clave de sus datos guardados):
    ```js
-   { id: 'doctrina', nombre: 'Doctrina', escena: 'doctrina', analizador: 'doctrina' },
+   { id: 'doctrina', asistente: 'Nombre del asistente', subtitulo: 'Doctrina',
+     nombre: 'Doctrina', escena: 'doctrina', analizador: 'doctrina' },
    ```
+   La interfaz toma de aquí el título grande y el subtítulo.
 2. **Su analizador** en `js/analizadores/doctrina.js`, registrado en
    `js/analizadores/index.js`. Debe exportar (mira `lecturas.js` como modelo):
    - `TIPOS`: tipos de pieza `{ clave: { nombre, abrev, corto, orden } }`.
@@ -141,16 +165,20 @@ ejemplo, «Doctrina»:
    `crear` devuelve `{ redimensionar, dibujar, destruir, proyectar, puntoDeAnillo }`.
    Lee del estado compartido `S`: `energy`, `mult`, `apertura`, `temblor`,
    `destello` (mira `agios.js`).
-4. Agrega los archivos nuevos a la lista `APP` de `sw.js` y sube `VERSION`.
+4. Agrega los archivos nuevos a la lista `APP` de `sw.js` y sube `VERSION`
+   (solo cambia el número: `agios-app-vN`).
 
 Cuando hay más de una colección, el menú ☰ permite elegir cuál usar.
 
 ## Estructura del proyecto
 
 ```
-index.html               interfaz (basada en prototipo/), import map con versiones fijas
-css/estilos.css
+index.html               interfaz (según prototipo/anesthios/), import map con versiones fijas
+css/estilos.css, css/fuentes.css
+fuentes/                 Rajdhani y JetBrains Mono (woff2 + licencias OFL), sin conexión
 js/app.js                máquina de estados, coreografía, subir, buscar, menú
+js/ventanas.js           ventanas de resultado: acumular, mover, ✕, no duplicar
+js/tablero.js            paneles COLECCIÓN y SISTEMA
 js/colecciones.js        registro de colecciones
 js/escenas/agios.js      modelo 3D (three.js)
 js/analizadores/         analizador «lecturas» (+ registro)
@@ -163,12 +191,14 @@ js/lector.js, js/paneles.js
 sw.js, manifest.webmanifest, iconos/
 pruebas/                 pruebas unitarias en el navegador, generador y documento FICTICIO
 pruebas/e2e/             prueba de extremo a extremo (solo desarrollo)
-prototipo/               prototipo aprobado (referencia)
+prototipo/               prototipos aprobados (Agios y Anesthios, referencia)
 ```
 
 HTML, CSS y JavaScript puro con módulos ES: sin npm ni paso de compilación.
 Librerías por CDN (jsDelivr) con versión fija: three 0.170.0, JSZip 3.10.1 y
-@huggingface/transformers 3.8.1.
+@huggingface/transformers 3.8.1. Tipografías **Rajdhani** y **JetBrains Mono**
+alojadas en `fuentes/` (de `@fontsource/rajdhani` y `@fontsource/jetbrains-mono`
+5.3.0, licencia SIL Open Font License 1.1, ver `fuentes/LICENCIA-*.txt`).
 
 ## Pruebas
 
@@ -176,9 +206,10 @@ Librerías por CDN (jsDelivr) con versión fija: three 0.170.0, JSZip 3.10.1 y
   del convertidor de ordinales (todos los ejemplos y ida y vuelta del 1 al 999),
   del analizador, de las marcas, de los fragmentos, de las referencias y de la
   búsqueda exacta. Ahí mismo puedes descargar el documento de prueba ficticio
-  (y una «versión 2» para probar la actualización) y subirlo a Agios.
+  (y una «versión 2» para probar la actualización) y subirlo a Anesthios.
 - **Extremo a extremo (desarrollo):** `pruebas/e2e/e2e.mjs` maneja Chromium con
-  Playwright y recorre todo: errores con luz roja, procesamiento con
-  interrupción y reanudación, Estructura detectada, búsquedas, lector,
-  actualización incremental, uso sin conexión, borrado y privacidad. Ver los
-  comentarios del archivo.
+  Playwright y recorre todo: **actualización desde la versión anterior sin
+  perder datos**, interfaz (paneles, ventanas, sugerencias), errores con luz
+  roja, procesamiento con interrupción y reanudación, Estructura detectada,
+  búsquedas, lector, actualización incremental, uso sin conexión, borrado,
+  privacidad y capturas en celular y tableta. Ver los comentarios del archivo.

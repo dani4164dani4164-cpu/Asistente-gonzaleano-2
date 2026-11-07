@@ -1,0 +1,10 @@
+/* Tipografías alojadas en el repositorio (funcionan sin conexión).
+   Rajdhani y JetBrains Mono, licencia SIL Open Font License 1.1:
+   ver fuentes/LICENCIA-*.txt. Archivos de @fontsource/rajdhani@5.3.0 y
+   @fontsource/jetbrains-mono@5.3.0 (subconjunto latino, suficiente para el español). */
+@font-face{font-family:'Rajdhani';font-style:normal;font-weight:400;font-display:swap;src:url(../fuentes/rajdhani-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Rajdhani';font-style:normal;font-weight:500;font-display:swap;src:url(../fuentes/rajdhani-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:'Rajdhani';font-style:normal;font-weight:600;font-display:swap;src:url(../fuentes/rajdhani-latin-600-normal.woff2) format('woff2')}
+@font-face{font-family:'Rajdhani';font-style:normal;font-weight:700;font-display:swap;src:url(../fuentes/rajdhani-latin-700-normal.woff2) format('woff2')}
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400;font-display:swap;src:url(../fuentes/jetbrains-mono-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:500;font-display:swap;src:url(../fuentes/jetbrains-mono-latin-500-normal.woff2) format('woff2')}

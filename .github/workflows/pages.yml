@@ -27,7 +27,7 @@ jobs:
       - name: Preparar el sitio (solo los archivos de la app y las pruebas)
         run: |
           mkdir _sitio
-          cp -r index.html manifest.webmanifest sw.js css js iconos _sitio/
+          cp -r index.html manifest.webmanifest sw.js css js iconos fuentes _sitio/
           mkdir _sitio/pruebas
           cp pruebas/index.html pruebas/pruebas.js pruebas/generador.js pruebas/FICTICIO-documento-de-prueba.docx _sitio/pruebas/
           touch _sitio/.nojekyll

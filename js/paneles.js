@@ -80,6 +80,6 @@ export function htmlMenu({ colecciones, uso, persistente, sinConexion }) {
   h += `<div style="margin-top:6px">Almacenamiento persistente: <b>${persistente ? 'sí' : 'no'}</b>` +
     (persistente ? '' : ` <button type="button" data-accion="persistir" style="margin-left:6px;font-size:12px;padding:5px 8px">Pedirlo</button>`) + '</div>';
   h += `<div>Uso sin conexión: <b>${sinConexion ? 'listo' : 'preparándose'}</b></div>`;
-  h += '<h3>Privacidad</h3><p style="margin:0;color:var(--dim);font-size:13px">Tus documentos se leen y se guardan solo en este dispositivo. Agios nunca envía su texto por internet.</p>';
+  h += '<h3>Privacidad</h3><p style="margin:0;color:var(--dim);font-size:13px">Tus documentos se leen y se guardan solo en este dispositivo. Anesthios nunca envía su texto por internet.</p>';
   return h;
 }
