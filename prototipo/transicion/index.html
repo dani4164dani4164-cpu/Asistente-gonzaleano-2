@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Anesthios – transición entre asistentes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600&family=JetBrains+Mono:wght@400;500&family=Cinzel:wght@500;600&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&display=swap" rel="stylesheet">
+<style>
+  /* ---------- Dos mundos, un mismo esqueleto ---------- */
+  .tema-agios{--txt:#CECBF6;--dim:#7d78b8;--acento:#7a6ff0;--linea:#2c2766;--claro:#e4e1ff;--chip:rgba(20,18,50,.5)}
+  .tema-kyrien{--txt:#f1e4c6;--dim:#c7ad7c;--acento:#d9b26a;--linea:rgba(217,178,106,.45);--claro:#f3dca6;--chip:rgba(40,28,18,.45)}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;background:#07070d;color:var(--txt);font-family:system-ui,sans-serif;overscroll-behavior:none}
+  body{display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    transition:color 1.2s}
+  /* Fondos de cada mundo, que se funden entre sí */
+  .mundo{position:fixed;inset:0;pointer-events:none;transition:opacity 2.4s ease}
+  .mundo.agios{background:radial-gradient(circle at 50% 52%,rgba(90,80,220,.18),transparent 55%),#07070d}
+  .mundo.agios::after{content:'';position:absolute;inset:0;background:radial-gradient(rgba(122,111,240,.13) 1px,transparent 1.4px) 0 0/22px 22px;
+    -webkit-mask:radial-gradient(circle at 50% 52%,#000 30%,transparent 78%);mask:radial-gradient(circle at 50% 52%,#000 30%,transparent 78%)}
+  .mundo.kyrien{background:radial-gradient(ellipse at 50% 48%,#5a4228 0%,#3d2d1f 32%,#2a2018 62%,#1d1612 100%)}
+  .mundo.kyrien::after{content:'';position:absolute;inset:0;opacity:.6;background-image:radial-gradient(1px 1px at 12% 18%,#f6e3b4,transparent),radial-gradient(1px 1px at 78% 12%,#f6e3b4,transparent),
+      radial-gradient(1.5px 1.5px at 33% 72%,#f6e3b4,transparent),radial-gradient(1px 1px at 88% 64%,#f6e3b4,transparent),radial-gradient(1px 1px at 52% 30%,#f6e3b4,transparent),
+      radial-gradient(1.5px 1.5px at 18% 88%,#f6e3b4,transparent),radial-gradient(1px 1px at 66% 86%,#f6e3b4,transparent),radial-gradient(1px 1px at 92% 34%,#f6e3b4,transparent)}
+  .tema-agios .mundo.kyrien,.tema-kyrien .mundo.agios{opacity:0}
+
+  header{position:relative;z-index:3;display:flex;align-items:center;gap:12px;padding:12px 16px 6px}
+  .marca{position:relative;height:40px;flex:1}
+  .marca .v{position:absolute;left:0;top:0;transition:opacity 1.2s}
+  .marca .agios{font:600 20px 'Rajdhani',sans-serif;letter-spacing:.42em;color:#e4e1ff;text-shadow:0 0 14px rgba(122,111,240,.55)}
+  .marca .agios small{display:block;font:500 9px 'JetBrains Mono',monospace;letter-spacing:.25em;color:#4a4590}
+  .marca .kyrien{font:600 19px 'Cinzel',serif;letter-spacing:.32em;color:#f3dca6;text-shadow:0 0 12px rgba(243,220,166,.35)}
+  .marca .kyrien small{display:block;font:italic 500 13px 'Cormorant Garamond',serif;letter-spacing:.08em;color:#c7ad7c}
+  .tema-agios .marca .kyrien,.tema-kyrien .marca .agios{opacity:0}
+  .chip{white-space:nowrap;display:flex;align-items:center;gap:7px;padding:5px 11px;border:1px solid var(--linea);border-radius:999px;background:var(--chip);
+    font:500 12px 'JetBrains Mono',monospace;color:var(--dim);transition:color 1.2s,border-color 1.2s,background 1.2s}
+  .chip i{width:7px;height:7px;border-radius:50%;background:var(--acento);box-shadow:0 0 8px 2px var(--acento);transition:background 1.2s,box-shadow 1.2s}
+
+  /* Selector de colección */
+  .selector{position:relative;z-index:3;display:flex;justify-content:center;gap:0;margin:4px auto 0;padding:3px;border:1px solid var(--linea);border-radius:999px;background:var(--chip);
+    transition:border-color 1.2s,background 1.2s}
+  .selector button{border:none;background:transparent;color:var(--dim);padding:7px 18px;border-radius:999px;font:600 13px system-ui;letter-spacing:.12em;cursor:pointer;transition:color .6s,background .6s}
+  .selector button.on{color:#120d06;background:var(--acento);box-shadow:0 0 14px var(--acento)}
+  .selector button:disabled{cursor:wait}
+
+  #zona{flex:1;position:relative;min-height:0}
+  #stage{position:absolute;inset:0;touch-action:none}
+  .escena{position:absolute;inset:0;width:100%;height:100%;display:block;transition:none}
+  .escena.transicion{pointer-events:none;opacity:0;z-index:2}
+  .capa{position:absolute;inset:0;transform-origin:50% 52%}
+
+  /* Título del asistente: dos versiones que se funden */
+  .titulo{position:absolute;top:18px;left:0;right:0;text-align:center;pointer-events:none;z-index:2;height:70px}
+  .titulo .v{position:absolute;left:0;right:0;top:0;transition:opacity 1.8s,transform 1.8s,filter 1.8s}
+  .titulo .agios h2{margin:0;font:600 34px 'Rajdhani',sans-serif;letter-spacing:.6em;padding-left:.6em;color:#ece9ff;text-shadow:0 0 18px rgba(122,111,240,.7)}
+  .titulo .agios .s{font:500 10px 'JetBrains Mono',monospace;letter-spacing:.28em;color:#7d78b8}
+  .titulo .kyrien h2{margin:0;font:600 36px 'Cinzel',serif;letter-spacing:.42em;padding-left:.42em;color:#f3dca6;text-shadow:0 0 22px rgba(240,190,100,.55)}
+  .titulo .kyrien .s{font:italic 500 16px 'Cormorant Garamond',serif;letter-spacing:.12em;color:#c7ad7c}
+  .titulo .v.fuera{opacity:0;transform:scale(1.15);filter:blur(6px)}
+
+  #fogonazo{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:0;background:radial-gradient(circle at 50% 52%,rgba(255,250,235,.95),rgba(255,230,190,.5) 12%,rgba(255,200,140,.12) 35%,transparent 60%)}
+  .estilos{display:flex;gap:6px;justify-content:center;margin-bottom:6px}
+  .estilos button{font:500 11px 'JetBrains Mono',monospace;padding:4px 10px;border-radius:999px;border:1px solid var(--linea);background:transparent;color:var(--dim);transition:color 1.2s,border-color 1.2s}
+  .estilos button.on{color:var(--claro);border-color:var(--acento)}
+  .menu{width:38px;height:34px;border-radius:9px;border:1px solid var(--linea);background:transparent;color:var(--claro);font-size:16px;transition:border-color 1.2s,color 1.2s}
+  .hoja{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:flex-end;padding:calc(env(safe-area-inset-top) + 56px) 12px 12px}
+  .hoja.abierta{display:flex}
+  .hoja-in{width:min(92vw,360px);border-radius:12px;padding:14px;border:1px solid var(--acento);background:var(--panel);color:var(--txt);box-shadow:0 10px 40px rgba(0,0,0,.5)}
+  .tema-agios{--panel:#0f0d24}.tema-kyrien{--panel:#3a2b1d}
+  .hoja-cab{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .hoja-cab b{font:600 15px system-ui;letter-spacing:.14em;text-transform:uppercase}
+  .hoja-cab button{width:30px;height:28px;border-radius:6px;border:1px solid var(--linea);background:transparent;color:var(--txt)}
+  .grupo{font:500 11px 'JetBrains Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:4px 0 8px}
+  .op{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--linea);border-radius:9px;margin-bottom:8px;cursor:pointer}
+  .op input{accent-color:var(--acento);margin-top:3px}
+  .op b{display:block;font:600 14px system-ui}.op small{display:block;font:13px system-ui;color:var(--dim);margin-top:2px}
+  .op:has(input:checked){border-color:var(--acento);box-shadow:0 0 12px rgba(150,130,255,.15)}
+  .pie{position:relative;z-index:3;padding:10px 14px calc(14px + env(safe-area-inset-bottom));text-align:center;font:500 12px 'JetBrains Mono',monospace;color:var(--dim);transition:color 1.2s}
+  @media (max-width:520px){.titulo .agios h2{font-size:28px}.titulo .kyrien h2{font-size:29px}}
+</style>
+</head>
+<body class="tema-agios">
+<div class="mundo agios"></div><div class="mundo kyrien"></div>
+
+<header>
+  <div class="marca">
+    <div class="v agios">ANESTHIOS<small>ASISTENTES GONZALEANOS</small></div>
+    <div class="v kyrien">ANESTHIOS<small>Asistentes Gonzaleanos</small></div>
+  </div>
+  <div class="chip"><i></i><span id="estado">activo</span></div>
+  <button class="menu" id="btnMenu" type="button" title="Menú">☰</button>
+</header>
+<div class="hoja" id="hoja">
+  <div class="hoja-in">
+    <div class="hoja-cab"><b>Ajustes</b><button type="button" id="cerrarHoja">✕</button></div>
+    <div class="grupo">Transición entre asistentes</div>
+    <label class="op"><input type="radio" name="trans" value="implosion"><span><b>Implosión</b><small>Se absorbe hacia su centro, destella y renace de una galaxia espiral</small></span></label>
+    <label class="op"><input type="radio" name="trans" value="estallido"><span><b>Estallido</b><small>Estalla en partículas que se transforman en el otro asistente</small></span></label>
+    <label class="op"><input type="radio" name="trans" value="azar"><span><b>Al azar</b><small>Cada cambio usa una de las dos</small></span></label>
+  </div>
+</div>
+<div class="selector" id="selector">
+  <button type="button" data-col="agios" class="on">AGIOS</button>
+  <button type="button" data-col="kyrien">KYRIEN</button>
+</div>
+
+<div id="zona">
+  <div class="titulo">
+    <div class="v agios" id="tAgios"><h2>AGIOS</h2><div class="s">LECTURAS Y EVANGELIOS</div></div>
+    <div class="v kyrien fuera" id="tKyrien"><h2>KYRIEN</h2><div class="s">✦ Doctrina Gonzaleana ✦</div></div>
+  </div>
+  <div id="fogonazo"></div>
+  <div id="stage">
+    <div class="capa" id="capaAgios"></div>
+    <div class="capa" id="capaKyrien" style="opacity:0"></div>
+  </div>
+</div>
+<div class="pie" id="pie">Toca KYRIEN o AGIOS para cambiar de asistente · ☰ Ajustes para elegir la transición</div>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import escenaAgios from './agios-escena.js';
+import escenaKyrien from './kyrien-escena.js';
+import {crearTransicion} from './transicion.js';
+
+const $=id=>document.getElementById(id);
+const nuevoS=()=>({energy:1,mult:1,apertura:0,temblor:0,destello:{color:new THREE.Color(),k:0,h:0},particles:90,rot:0,rotVel:0,tilt:0,zoom:1,T:0});
+const M={
+  agios:{S:nuevoS(),capa:$('capaAgios'),titulo:$('tAgios')},
+  kyrien:{S:nuevoS(),capa:$('capaKyrien'),titulo:$('tKyrien')},
+};
+M.agios.esc=escenaAgios.crear(M.agios.capa,M.agios.S);
+M.kyrien.esc=escenaKyrien.crear(M.kyrien.capa,M.kyrien.S);
+const trans=crearTransicion($('stage'));
+function layout(){const r=$('stage').getBoundingClientRect();if(!r.width)return;for(const k in M)M[k].esc.redimensionar(r.width,r.height);trans.redimensionar(r.width,r.height);}
+new ResizeObserver(layout).observe($('stage'));layout();
+
+let actual='agios',siguiente=null,tTrans=0,modo='implosion',DURA=7000;
+const DURACION={implosion:7000,estallido:6000};
+/* Ajustes: estilo de transición (se guarda en el dispositivo) */
+let preferencia='implosion';
+try{preferencia=localStorage.getItem('anesthios.transicion')||'implosion';}catch{}
+document.querySelectorAll('input[name=trans]').forEach(r=>{r.checked=r.value===preferencia;
+  r.onchange=()=>{preferencia=r.value;try{localStorage.setItem('anesthios.transicion',preferencia);}catch{}};});
+$('btnMenu').onclick=()=>$('hoja').classList.add('abierta');
+$('cerrarHoja').onclick=()=>$('hoja').classList.remove('abierta');
+$('hoja').onclick=e=>{if(e.target.id==='hoja')$('hoja').classList.remove('abierta');};
+const suave=x=>x*x*(3-2*x),lim=x=>Math.max(0,Math.min(1,x));
+
+function cambiar(a){
+  if(a===actual||siguiente)return;
+  siguiente=a;tTrans=0;
+  document.querySelectorAll('#selector button').forEach(b=>{b.disabled=true;});
+  $('estado').textContent='transformando…';
+  const llega=M[a];llega.S.apertura=1;llega.S.rot=M[actual].S.rot;                // el que llega empieza deshecho
+  modo=preferencia==='azar'?(Math.random()<0.5?'implosion':'estallido'):preferencia;
+  DURA=DURACION[modo];trans.correr(actual,a,DURA,modo);
+}
+document.querySelectorAll('#selector button').forEach(b=>b.onclick=()=>cambiar(b.dataset.col));
+
+/* Coreografía: el que se va se deshace y se apaga; el tema cambia a la mitad; el que llega se arma */
+function coreografia(dT){
+  if(!siguiente)return;
+  tTrans+=dT;const p=lim(tTrans/DURA);
+  const va=M[actual],llega=M[siguiente];
+  // el que se va
+  if(modo==='implosion'){
+    // es absorbido: gira más rápido, se encoge hacia su centro y se apaga
+    va.S.mult=1+3*suave(lim(p/0.15));const enc=suave(lim(p/0.17));
+    va.capa.style.opacity=1-suave(lim((p-0.06)/0.11));va.capa.style.transform=`scale(${1-0.85*enc}) rotate(${enc*40}deg)`;
+    const f=Math.exp(-Math.pow((p-0.18)/0.04,2));$('fogonazo').style.opacity=f;
+  }else{
+    va.S.apertura=Math.max(va.S.apertura,suave(lim(p/0.18)));va.S.mult=1+2*suave(lim(p/0.15));
+    va.capa.style.opacity=1-suave(lim((p-0.05)/0.2));
+    va.capa.style.transform=actual==='agios'?`scale(${1+0.35*suave(lim(p/0.25))})`:`scale(${1+0.15*suave(lim(p/0.25))})`;
+  }
+  // a la mitad: cambia el mundo (fondo, colores, títulos, selector)
+  if(p>(modo==='implosion'?0.36:0.42)&&document.body.classList.contains('tema-'+actual)){
+    document.body.className='tema-'+siguiente;
+    va.titulo.classList.add('fuera');llega.titulo.classList.remove('fuera');
+    document.querySelectorAll('#selector button').forEach(b=>b.classList.toggle('on',b.dataset.col===siguiente));
+  }
+  // el que llega: aparece mientras las partículas lo dibujan y se termina de armar
+  const ini=modo==='implosion'?0.74:0.68;
+  const fl=suave(lim((p-ini)/0.2));llega.capa.style.opacity=fl;llega.capa.style.transform=`scale(${0.92+0.08*fl})`;
+  llega.S.apertura=1-suave(lim((p-ini+0.02)/(0.98-ini)));llega.S.mult=1;
+  if(p>=1){
+    va.capa.style.opacity=0;va.S.apertura=0;va.S.mult=1;va.capa.style.transform='';$('fogonazo').style.opacity=0;
+    llega.capa.style.transform='';actual=siguiente;siguiente=null;
+    document.querySelectorAll('#selector button').forEach(b=>b.disabled=false);$('estado').textContent='activo';
+  }
+}
+
+/* Gestos: arrastrar para girar al asistente visible */
+let down=null;
+$('stage').addEventListener('pointerdown',e=>{$('stage').setPointerCapture(e.pointerId);down={x:e.clientX,y:e.clientY};});
+$('stage').addEventListener('pointermove',e=>{if(!down)return;const S=M[actual].S,dx=e.clientX-down.x,dy=e.clientY-down.y;down={x:e.clientX,y:e.clientY};
+  S.rot+=dx*0.008;S.rotVel=dx*0.008;S.tilt=Math.max(-.3,Math.min(.7,S.tilt+dy*.004));});
+$('stage').addEventListener('pointerup',()=>down=null);$('stage').addEventListener('pointercancel',()=>down=null);
+
+let last=performance.now();
+function loop(t){
+  const dT=Math.min(50,Math.max(0,t-last));last=t;
+  coreografia(dT);
+  for(const k in M){
+    const m=M[k],S=m.S,visible=k===actual||k===siguiente;
+    S.T+=dT*0.85*S.mult;if(!down||k!==actual){S.rot+=S.rotVel;S.rotVel*=Math.pow(.94,dT/16.7);}
+    if(visible)m.esc.dibujar(t,dT);                     // el oculto no gasta GPU
+  }
+  trans.dibujar(dT,M[actual].S.rot);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
