@@ -1,5 +1,6 @@
 /* Servidores locales para las pruebas de extremo a extremo:
-   - la app (HTTP, carpeta del repositorio)
+   - la app (HTTP, carpeta del repositorio; se puede cambiar en caliente
+     con cambiarRaiz() para probar la actualización de una versión a otra)
    - opcional: un espejo HTTPS de cdn.jsdelivr.net y huggingface.co
      (ver preparar-espejo.sh). Registra cada petición para comprobar
      que nunca se envía el texto del documento. */
@@ -46,7 +47,8 @@ function manejador(raizDe, registro) {
 
 export async function iniciar({ raizApp, espejo = null, puertoApp = 8080, puertoEspejo = 443 }) {
   const registro = [];
-  const app = http.createServer(manejador(() => raizApp, registro));
+  const estado = { raiz: raizApp };
+  const app = http.createServer(manejador(() => estado.raiz, registro));
   await new Promise(ok => app.listen(puertoApp, '127.0.0.1', ok));
   let seguro = null;
   if (espejo) {
@@ -57,5 +59,5 @@ export async function iniciar({ raizApp, espejo = null, puertoApp = 8080, puerto
   const cerrar = async () => {
     for (const s of [app, seguro]) if (s) { s.closeAllConnections?.(); await new Promise(ok => s.close(ok)); }
   };
-  return { registro, cerrar };
+  return { registro, cerrar, cambiarRaiz: r => { estado.raiz = r; } };
 }
