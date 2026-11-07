@@ -248,7 +248,7 @@ function entrar(col){
   const m=M[col];m.S.apertura=1;m.S.rot=0;m.S.tilt=0;m.S.rotVel=0;
   M[col].titulo.classList.remove('fuera');M[col==='agios'?'kyrien':'agios'].titulo.classList.add('fuera');
   document.querySelectorAll('#selector button').forEach(b=>b.classList.toggle('on',b.dataset.col===col));
-  layout();neb.formar(col,5200);
+  layout();neb.formar(col,9000);
 }
 function volver(){
   if(viaje||enMenu||siguiente)return;
@@ -261,9 +261,9 @@ function coreografiaMenu(){
   if(!viaje)return;
   const p=neb.progreso,m=M[viaje.col];
   if(viaje.tipo==='entrar'){
-    if(p>0.42&&!viaje.cambioTema){viaje.cambioTema=true;document.body.className='tema-'+viaje.col;}   // aparece su mundo
-    const fl=suave(lim((p-0.66)/0.26));m.capa.style.opacity=fl;m.capa.style.transform=`scale(${0.94+0.06*fl})`;
-    m.S.apertura=1-suave(lim((p-0.62)/0.38));                                   // Kyrien rearma su roca; Agios cierra su núcleo
+    if(p>0.5&&!viaje.cambioTema){viaje.cambioTema=true;document.body.className='tema-'+viaje.col;}   // aparece su mundo
+    const fl=suave(lim((p-0.74)/0.2));m.capa.style.opacity=fl;m.capa.style.transform=`scale(${0.94+0.06*fl})`;
+    m.S.apertura=1-suave(lim((p-0.72)/0.28));                                   // Kyrien rearma su roca; Agios cierra su núcleo
   }else{
     const fv=1-suave(lim(p/0.2));m.capa.style.opacity=fv;m.S.apertura=suave(lim(p/0.15));m.S.mult=1+2*suave(lim(p/0.15));
     if(p>0.3&&!viaje.cambioTema){viaje.cambioTema=true;document.body.className='tema-menu';}

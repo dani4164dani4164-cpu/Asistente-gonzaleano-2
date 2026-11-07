@@ -216,12 +216,19 @@ Al abrir la app ya **no** se entra directo a un asistente. Se muestra el menú:
   y subtítulo, con el color de su tema). Hoy son Agios y Kyrien; una colección
   nueva debe aparecer sola. Los orbes se acomodan para no encimarse en celular
   ni en tableta, vertical u horizontal.
-- **Entrar** (≈5 s): el polvo de la nebulosa fluye y **dibuja al asistente**
-  (usa `FORMAS` de `transicion.js`, exportado) mientras el gas se condensa.
+- **Entrar = nacimiento estelar** (≈9 s, `formar()` de `prototipo/menu/nebulosa.js`):
+  1. **Caos**: el polvo y el gas se agitan con turbulencia fuerte.
+  2. **Acreción**: la materia entra en órbita y gira rápido en un disco
+     inclinado alrededor de un centro de gravedad (más rápido cuanto más cerca
+     del centro, ω ∝ r^-1.5). El disco se va cerrando y en el centro **crece un
+     núcleo de luz** con la masa acumulada. La turbulencia se calma poco a poco.
+  3. **Calma**: el giro se frena y la materia se acomoda en la forma del
+     asistente (`FORMAS` de `transicion.js`, exportado). El núcleo cede su luz y
+     el asistente se materializa (`S.apertura` de 1 a 0): Kyrien rearma su
+     roca y Agios cierra su núcleo.
   La cámara de la nebulosa se encuadra sobre la zona del asistente
   (`encuadre(rect)`), para que el polvo forme la figura justo donde aparecerá.
-  A la mitad cambia el mundo al tema del asistente. Al final se materializa el
-  asistente (`S.apertura` de 1 a 0): Kyrien rearma su roca y Agios cierra su núcleo.
+  A la mitad cambia el mundo al tema del asistente.
 - **Volver** (≈5 s): tocar **ANESTHIOS** en la barra superior. El asistente se
   deshace en polvo que **vuelve a ser la nebulosa**, el gas se enciende de
   nuevo y reaparece el menú. Las ventanas abiertas del asistente se guardan y

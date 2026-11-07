@@ -100,6 +100,11 @@ export function crearNebulosa(contenedor,N=2600){
     nubes.push({s,m,casa:q.p.clone(),tam,op:0.13+rand()*0.18,giro:(rand()-.5)*0.0002});
   }
 
+  const mNuc=new THREE.SpriteMaterial({map:tPunto,color:0xffffff,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,opacity:0});
+  const nucleo=new THREE.Sprite(mNuc);nucleo.scale.setScalar(0.01);mundo.add(nucleo);
+  const mHaloN=new THREE.SpriteMaterial({map:tNubes[0],color:0xffffff,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,opacity:0});
+  const haloN=new THREE.Sprite(mHaloN);mundo.add(haloN);
+  const DISCO=new THREE.Euler(0.5,0,0.18);
   let dist=6,t0=0,anim=null,W=1,H=1,zona={cx:0.5,cy:0.5,w:1,h:1};
   function redimensionar(w,h){W=w;H=h;renderer.setSize(w,h,false);camara.aspect=w/h;dist=camara.aspect<1?4.9/Math.max(0.55,camara.aspect)*0.62:4.3;camara.updateProjectionMatrix();}
   /* Dónde vive el asistente dentro de la pantalla (px), para que el polvo lo dibuje justo ahí */
@@ -107,13 +112,18 @@ export function crearNebulosa(contenedor,N=2600){
 
   /* El asistente usa su propia cámara (≈ distancia 1.2/tan(fov/2)); para que la forma coincida,
      la nebulosa acerca la cámara al centro mientras forma. */
-  const tmp=new THREE.Vector3(),cA=new THREE.Color(),cB=new THREE.Color();
+  const tmp=new THREE.Vector3(),orb=new THREE.Vector3(),cA=new THREE.Color(),cB=new THREE.Color();
   function preparar(asistente){
     const F=FORMAS[asistente](N,rand);
     return {F,dest:F.puntos,inc:F.inclinacion,hue:F.tono};
   }
   let formado=null;                 // al terminar de formar, el polvo se queda con la forma del asistente
-  function formar(asistente,dur=4600){anim={tipo:'formar',...preparar(asistente),t:0,dur};}
+  function formar(asistente,dur=9000){
+    anim={tipo:'formar',...preparar(asistente),t:0,dur};
+    for(const q of pol){q.r0=Math.min(2.3,0.35+q.casa.length())*(0.75+rand()*0.4);q.ang=Math.atan2(q.casa.z,q.casa.x)+rand()*0.5;
+      q.alto=(rand()-.5)*0.5;q.ret=rand()*0.1;q.tx=rand()*6.283;q.ty=rand()*6.283;q.tz=rand()*6.283;}
+    for(const n of nubes){n.ang=Math.atan2(n.casa.z,n.casa.x);n.r0=Math.max(0.3,n.casa.length());}
+  }
   function disolver(asistente,dur=4200){anim={...(formado||preparar(asistente)),tipo:'disolver',t:0,dur};formado=null;}
 
   function distAsistente(){const aj=1.2/Math.tan(THREE.MathUtils.degToRad(18.5)),asp=zona.w/zona.h;
@@ -131,9 +141,9 @@ export function crearNebulosa(contenedor,N=2600){
     if(!anim&&formado){forma=1;acerca=1;fGas=0;}
     if(anim){
       anim.t+=dT;p=lim(anim.t/anim.dur);
-      forma=anim.tipo==='formar'?suave(lim((p-0.08)/0.72)):1-suave(lim((p-0.05)/0.75));
-      acerca=anim.tipo==='formar'?suave(lim(p/0.6)):1-suave(lim((p-0.25)/0.6));
-      fGas=anim.tipo==='formar'?1-suave(lim(p/0.42)):suave(lim((p-0.35)/0.5));
+      forma=anim.tipo==='formar'?suave(lim((p-0.66)/0.3)):1-suave(lim((p-0.05)/0.75));
+      acerca=anim.tipo==='formar'?suave(lim((p-0.05)/0.6)):1-suave(lim((p-0.25)/0.6));
+      fGas=anim.tipo==='formar'?1-suave(lim((p-0.1)/0.45)):suave(lim((p-0.35)/0.5));
     }
     // cámara: lejos para ver la nebulosa; cerca y de frente cuando forma al asistente
     const dLejos=dist,dCerca=distAsistente();
@@ -141,27 +151,55 @@ export function crearNebulosa(contenedor,N=2600){
     mundo.rotation.set(A?(A.inc*acerca):0,(1-acerca)*Math.sin(t0*0.00004)*0.25,0,'YXZ');
     // polvo
     const hue=A?A.hue:[0,0];
+    // Nacimiento estelar: caos → disco de acreción alrededor de un centro que crece → calma y forma
+    const nace=anim&&anim.tipo==='formar';
+    const caos=nace?Math.sin(Math.PI*lim(p/0.5))*(1-lim((p-0.25)/0.35))*0.55:0;          // fuerte al inicio, se calma
+    const aOrb=nace?suave(lim((p-0.04)/0.2)):0;                                         // entrar en órbita
+    const cierra=nace?suave(lim((p-0.12)/0.55)):0;                                      // el disco se cierra
+    const giro=nace?suave(lim((p-0.05)/0.15))*(1-suave(lim((p-0.62)/0.3))):0;            // girar rápido y luego frenar
+    const masa=nace?suave(lim((p-0.08)/0.55)):0;
     for(let i=0;i<N;i++){
       const q=pol[i];
       tmp.copy(q.casa);
-      const ond=0.05*(1-forma);tmp.x+=Math.sin(t0*0.0004*q.vel+q.fase)*ond;tmp.y+=Math.cos(t0*0.00033*q.vel+q.fase)*ond;
-      tmp.applyAxisAngle(q.eje,0.0);
-      if(A&&forma>0){
+      const ond=0.05*(1-Math.max(forma,aOrb));tmp.x+=Math.sin(t0*0.0004*q.vel+q.fase)*ond;tmp.y+=Math.cos(t0*0.00033*q.vel+q.fase)*ond;
+      if(nace){
+        // órbita: más cerca del centro = más rápido (como las órbitas reales)
+        const r=q.r0*(1-0.78*cierra)+0.04;
+        q.ang+=dT*0.0042*giro*q.vel*0.6/Math.pow(Math.max(0.18,r),1.5);
+        orb.set(Math.cos(q.ang)*r,q.alto*r*(1-cierra)*0.6,Math.sin(q.ang)*r).applyEuler(DISCO);
+        tmp.lerp(orb,aOrb);
+        // turbulencia caótica
+        if(caos>0.001){tmp.x+=Math.sin(t0*0.011*q.vel+q.tx)*caos*q.vel;tmp.y+=Math.sin(t0*0.013*q.vel+q.ty)*caos*q.vel;tmp.z+=Math.sin(t0*0.009*q.vel+q.tz)*caos*0.6;}
+        // calma: se acomoda en la forma del asistente
+        const f=suave(lim((p-0.64-q.ret)/0.3));
+        if(f>0)tmp.lerp(A.dest[i],f);
+      }else if(A&&forma>0){
         const d=A.dest[i],arco=Math.sin(forma*Math.PI)*0.6;
         tmp.lerp(d,forma);tmp.x+=q.eje.x*arco;tmp.y+=q.eje.y*arco;tmp.z+=q.eje.z*arco;
       }
       pos[i*3]=tmp.x;pos[i*3+1]=tmp.y;pos[i*3+2]=tmp.z;
       cA.copy(q.c);
-      if(A){cB.setHSL((hue[0]+Math.sin(i)*hue[1])/360,0.9,0.64);cA.lerp(cB,forma);}
-      const parp=0.75+0.25*Math.sin(t0*0.002*q.vel+q.fase);
-      col[i*3]=cA.r*parp;col[i*3+1]=cA.g*parp;col[i*3+2]=cA.b*parp;
+      const k=nace?suave(lim((p-0.3)/0.5)):forma;
+      if(A){cB.setHSL((hue[0]+Math.sin(i)*hue[1])/360,0.9,0.64);cA.lerp(cB,k);}
+      const parp=0.75+0.25*Math.sin(t0*0.002*q.vel+q.fase)+(nace?0.5*giro*Math.max(0,1-tmp.length()):0);
+      col[i*3]=Math.min(1,cA.r*parp);col[i*3+1]=Math.min(1,cA.g*parp);col[i*3+2]=Math.min(1,cA.b*parp);
     }
+    // el centro de gravedad: crece con la masa y cede su luz al asistente
+    if(nace){
+      const luz=masa*(1-suave(lim((p-0.78)/0.2)));
+      cB.setHSL(hue[0]/360,0.6,0.85);mNuc.color.copy(cB).lerp(new THREE.Color(1,1,1),0.5);mHaloN.color.copy(cB);
+      nucleo.scale.setScalar(0.05+0.55*masa);mNuc.opacity=luz;
+      haloN.scale.setScalar(0.4+1.6*masa);mHaloN.opacity=0.35*luz;haloN.material.rotation=t0*0.0008*giro;
+    }else{mNuc.opacity=0;mHaloN.opacity=0;}
     gPol.attributes.position.needsUpdate=true;gPol.attributes.color.needsUpdate=true;
     mPol.size=0.045-0.015*acerca;
     // gas: aparece al inicio, se condensa hacia el centro al formar
     const aparece=lim(t0/1500);
     for(const n of nubes){
-      n.s.position.copy(n.casa).multiplyScalar(1-0.85*(1-fGas));
+      if(nace){const r=n.r0*(1-0.8*cierra);n.ang+=dT*0.003*giro/Math.pow(Math.max(0.3,r),1.2);
+        orb.set(Math.cos(n.ang)*r,n.casa.y*(1-cierra),Math.sin(n.ang)*r).applyEuler(DISCO);
+        n.s.position.copy(n.casa).lerp(orb,aOrb);n.s.position.x+=Math.sin(t0*0.008+n.tam*7)*caos*0.6;n.s.position.y+=Math.cos(t0*0.007+n.tam*5)*caos*0.6;}
+      else n.s.position.copy(n.casa).multiplyScalar(1-0.85*(1-fGas));
       n.s.scale.setScalar(n.tam*(0.35+0.65*fGas));
       n.m.rotation+=n.giro*dT;n.m.opacity=n.op*aparece*fGas*(1-0.75*acerca);
     }
