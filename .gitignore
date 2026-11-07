@@ -6,3 +6,10 @@
 *.rtf
 datos/
 documentos/
+
+# Única excepción: documento de prueba con TEXTO FICTICIO generado por
+# pruebas/generador.js (no contiene ningún documento real).
+!pruebas/FICTICIO-documento-de-prueba.docx
+
+# Capturas e informes de las pruebas de extremo a extremo
+pruebas/e2e/salida/
