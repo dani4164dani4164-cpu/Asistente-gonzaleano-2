@@ -1,0 +1,139 @@
+/* ============================================================
+   Mundo de Kyrien (prototipo/kyrien/index.html): fondo sepia cálido
+   con estrellas, Cinzel y Cormorant Garamond, esquinas con filigrana,
+   esfera de numerales romanos, placas con doble filete, velitas,
+   ventanas y lector de pergamino, consola redondeada con ✦.
+   La interfaz se acota con .tema-kyrien en <body>; las ventanas y el
+   lector, por su propia clase (t-kyrien / data-tema), porque una
+   ventana de Agios puede abrirse dentro del mundo de Kyrien.
+   ============================================================ */
+.tema-kyrien{
+  --oro:#d9b26a;--oro-claro:#f3dca6;--oro-osc:#9c7a3c;--tinta:#3a2a18;--txt:#f1e4c6;--dim:#c7ad7c;--tenue:#8f744a;
+  --linea:rgba(217,178,106,.45);--pergamino:#efe2c4;--pergamino2:#e4d2ad;
+  --tituloK:'Cinzel',Georgia,serif;--textoK:'Cormorant Garamond',Georgia,serif;
+  --acento:#d9b26a;--chip:rgba(40,28,18,.45);--claro:#f3dca6;--panel:#3a2b1d;
+  font-family:var(--textoK);color:var(--txt);
+}
+.t-kyrien{--oro:#d9b26a;--oro-claro:#f3dca6;--oro-osc:#9c7a3c;--tinta:#3a2a18;--pergamino:#efe2c4;--pergamino2:#e4d2ad;--tituloK:'Cinzel',Georgia,serif;--textoK:'Cormorant Garamond',Georgia,serif}
+
+/* ---------- Encabezado ---------- */
+.marca .t-kyrien{font:600 19px 'Cinzel',Georgia,serif;letter-spacing:.32em;color:#f3dca6;text-shadow:0 0 12px rgba(243,220,166,.35)}
+.marca .t-kyrien small{display:block;font:italic 500 13px 'Cormorant Garamond',Georgia,serif;letter-spacing:.08em;color:#c7ad7c;margin-top:0}
+.chip-estado,.boton-menu,.panel-dato,.consola,.sugerencias button,.campo{transition:color 1.2s,background 1.2s,border-color 1.2s,box-shadow 1.2s}
+.tema-kyrien .chip-estado{font:italic 600 14px var(--textoK);letter-spacing:.06em;text-transform:none;color:var(--dim);padding:4px 12px;border:1px solid var(--linea);border-radius:999px;background:rgba(40,28,18,.45)}
+.tema-kyrien .chip-estado i{width:8px;height:8px;border-radius:0;transform:rotate(45deg);background:#6d6253}
+.tema-kyrien .chip-estado.on i{background:var(--oro);box-shadow:0 0 8px 2px rgba(240,190,100,.7)}
+.tema-kyrien .chip-estado.ok i{background:#5fd48f;box-shadow:0 0 8px 2px rgba(95,212,143,.7)}
+.tema-kyrien .chip-estado.err i{background:#ff6070;box-shadow:0 0 8px 2px rgba(255,96,112,.7)}
+.tema-kyrien .boton-menu{border-radius:8px;border:1px solid var(--linea);color:var(--oro-claro)}
+/* separador ornamental en lugar de la regla */
+.regla.t-kyrien{display:flex;align-items:center;gap:10px;color:#d9b26a;font-size:11px;line-height:12px}
+.regla.t-kyrien::before,.regla.t-kyrien::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,#d9b26a 30%,#d9b26a 70%,transparent)}
+
+/* ---------- Esfera de numerales detrás de Kyrien ---------- */
+.esfera{position:absolute;left:50%;top:52%;width:min(94vw,94vh,660px);aspect-ratio:1;transform:translate(-50%,-50%);pointer-events:none}
+.esfera .aro{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(217,178,106,.22)}
+.esfera .aro.b{inset:3.5%;border:1px dotted rgba(217,178,106,.35);animation:girar 140s linear infinite}
+.esfera .numerales{position:absolute;inset:0;animation:girar 300s linear infinite reverse}
+.esfera .numerales span{position:absolute;left:50%;top:50%;font:600 12px 'Cinzel',Georgia,serif;color:rgba(217,178,106,.55);letter-spacing:.05em}
+/* esquinas con filigrana */
+.filigrana{position:absolute;width:46px;height:46px;pointer-events:none;color:#d9b26a;opacity:.8}
+.filigrana.a{top:8px;left:8px}.filigrana.b{top:8px;right:8px;transform:scaleX(-1)}
+.filigrana.c{bottom:8px;left:8px;transform:scaleY(-1)}.filigrana.d{bottom:8px;right:8px;transform:scale(-1,-1)}
+
+/* ---------- Nombre del asistente ---------- */
+.titulo-col.t-kyrien{top:16px}
+.titulo-col.t-kyrien h2{font:600 36px 'Cinzel',Georgia,serif;letter-spacing:.42em;padding-left:.42em;color:#f3dca6;
+  text-shadow:0 0 22px rgba(240,190,100,.55),0 1px 0 #6b4a1e}
+.titulo-col.t-kyrien.apagado h2{color:#b9ab93;text-shadow:0 0 8px rgba(185,171,147,.2)}
+.titulo-col.t-kyrien .sub{font:italic 500 16px 'Cormorant Garamond',Georgia,serif;letter-spacing:.12em;color:#c7ad7c;text-transform:none;margin-top:0}
+.titulo-col.t-kyrien .sub::before,.titulo-col.t-kyrien .sub::after{content:'✦';width:auto;height:auto;font-size:9px;color:#d9b26a;background:none;transform:none}
+.tema-kyrien #hint{font:italic 500 15px/1.4 var(--textoK);color:var(--dim);top:88px}
+.tema-kyrien #hint.err{color:#ffb0b0}.tema-kyrien #hint.ok{color:#a8f0c4}
+
+/* ---------- Paneles: placas con doble filete ---------- */
+.tema-kyrien .panel-dato{bottom:20px;width:clamp(140px,31vw,200px);padding:10px 12px 9px;font:500 15px var(--textoK);color:var(--dim);
+  background:linear-gradient(180deg,rgba(70,52,32,.62),rgba(40,30,20,.5));border:1px solid var(--linea);border-radius:6px;clip-path:none;
+  box-shadow:inset 0 0 0 3px rgba(30,22,14,.35),inset 0 0 0 4px rgba(217,178,106,.22),0 6px 20px rgba(0,0,0,.25)}
+.tema-kyrien .panel-dato.izq{left:18px}.tema-kyrien .panel-dato.der{right:18px}
+.tema-kyrien .panel-dato h3{margin:0 0 6px;font:600 12px var(--tituloK);letter-spacing:.24em;color:var(--oro-claro);text-align:center}
+.tema-kyrien .panel-dato h3::after{content:'';display:block;height:1px;margin:5px 14px 0;background:linear-gradient(90deg,transparent,var(--oro),transparent)}
+.tema-kyrien .panel-dato .f{line-height:1.5}
+.tema-kyrien .panel-dato .f b{font-weight:700;color:var(--txt)}
+.tema-kyrien .abiertas span{font:600 12.5px var(--textoK);color:var(--tinta);padding:0 6px;border-radius:3px;border:0;background:linear-gradient(180deg,var(--pergamino),var(--pergamino2))}
+/* velas en lugar de barras */
+.tema-kyrien .barras{gap:4px;justify-content:center}
+.tema-kyrien .barras span{flex:none;width:5px;border-radius:50% 50% 2px 2px / 70% 70% 2px 2px;transition:height .15s;
+  background:linear-gradient(180deg,#fff2c8,#f2b95a 45%,#a8661f);box-shadow:0 0 6px rgba(242,185,90,.6)}
+
+/* ---------- Ventana «Subir archivo» ---------- */
+.tema-kyrien #subir{border-radius:6px;color:var(--tinta);background:linear-gradient(180deg,var(--pergamino),var(--pergamino2));border:1px solid var(--oro-osc);
+  box-shadow:0 0 0 4px rgba(239,226,196,.25),0 0 40px rgba(240,190,100,.45);backdrop-filter:none}
+.tema-kyrien #subir h4{font:600 16px var(--tituloK);letter-spacing:.18em;margin:0 0 4px;color:#5a3d16}
+.tema-kyrien #subir p{font:italic 16px var(--textoK);color:#6b5434}
+.tema-kyrien #subir button{color:var(--tinta);border-color:var(--oro-osc)}
+.tema-kyrien #subir button.prim{background:linear-gradient(180deg,#e7c27a,#c9963f);color:#3a2408}
+
+/* ---------- Ventanas de resultados: pergamino ---------- */
+.tarjeta.t-kyrien{color:var(--tinta);background:linear-gradient(180deg,var(--pergamino),var(--pergamino2));backdrop-filter:none;
+  border:1px solid var(--oro-osc);border-radius:5px;box-shadow:0 0 0 3px rgba(239,226,196,.18),0 10px 30px rgba(0,0,0,.35),0 0 26px rgba(240,190,100,.25)}
+.tarjeta.t-kyrien::before,.tarjeta.t-kyrien::after{display:none}
+.tarjeta.t-kyrien.arrastrando{box-shadow:0 0 0 3px rgba(239,226,196,.3),0 16px 40px rgba(0,0,0,.45),0 0 36px rgba(240,190,100,.45);border-color:var(--oro-osc)}
+.tarjeta.t-kyrien.destella{animation:destellaK .9s ease-out 1}
+@keyframes destellaK{25%,60%{box-shadow:0 0 0 3px #fff3cf,0 0 46px 8px rgba(255,200,110,.85)}}
+.tarjeta.t-kyrien .cab{padding:7px 8px 6px 12px;background:linear-gradient(180deg,#d9b26a,#bf9346);border-bottom:1px solid var(--oro-osc);border-radius:4px 4px 0 0}
+.tarjeta.t-kyrien .agarre{font-size:11px;color:#6b4a1e;letter-spacing:0}
+.tarjeta.t-kyrien .ref{font:700 15px var(--tituloK);letter-spacing:.04em;color:#2e1d08;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto}
+.tarjeta.t-kyrien .tipo{font:italic 600 14px var(--textoK);letter-spacing:0;text-transform:none;color:#5a3d16}
+.tarjeta.t-kyrien .x{width:28px;height:26px;border:1px solid #8a6528;border-radius:4px;background:rgba(255,240,205,.35);color:#4a3010;font-size:13px}
+.tarjeta.t-kyrien p{font:500 17px/1.45 var(--textoK);padding:10px 14px 4px;color:var(--tinta)}
+.tarjeta.t-kyrien mark{background:rgba(217,160,60,.35);color:#2e1d08}
+.tarjeta.t-kyrien .origen{font:italic 600 13px var(--textoK);letter-spacing:0;text-transform:none;color:#7a5a2a}
+.tarjeta.t-kyrien .pie button{color:#3a2408;border-color:var(--oro-osc);background:linear-gradient(180deg,#f3dca6,#dcbc7c);font:600 15px var(--textoK)}
+.tarjeta.t-kyrien a.enlace{color:#6b3d0a;font-weight:700}
+.tema-kyrien .chispa{background:#fff5d8;box-shadow:0 0 10px 4px rgba(255,210,130,.9),0 0 24px 8px rgba(240,160,60,.5)}
+
+/* ---------- Consola ---------- */
+.tema-kyrien .consola{padding:8px 12px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(40,30,20,.6),rgba(28,21,15,.85));border-top:1px solid var(--linea)}
+.tema-kyrien .sugerencias button{font:italic 600 15px var(--textoK);letter-spacing:0;padding:4px 12px;border-radius:999px;color:var(--oro-claro);border-color:var(--linea);background:rgba(60,44,28,.45)}
+.tema-kyrien #cerrarTodas{color:#ffc4c4!important;border-color:rgba(200,90,90,.6)!important}
+.tema-kyrien .campo{clip-path:none;background:rgba(239,226,196,.1);border:1px solid var(--linea);border-radius:999px;padding:0 14px}
+.tema-kyrien .campo:focus-within{border-color:var(--oro);box-shadow:0 0 16px rgba(240,190,100,.25)}
+.tema-kyrien .campo span{font-size:13px;color:var(--oro)}
+.tema-kyrien .campo input{color:var(--txt);padding:11px 0;font:500 17px var(--textoK)}
+.tema-kyrien .campo input::placeholder{color:rgba(199,173,124,.75);font-style:italic}
+.tema-kyrien .consola button,.tema-kyrien .hoja button{border:1px solid var(--oro-osc);border-radius:8px;font:600 15px var(--textoK);color:var(--txt)}
+.tema-kyrien .consola .prim,.tema-kyrien .hoja .prim{background:linear-gradient(180deg,#e7c27a,#b98535);color:#3a2408;border-color:#e7c27a}
+.tema-kyrien .icono{border-radius:50%;font-size:18px;padding:0}
+
+/* ---------- Lector: pergamino a pantalla completa ---------- */
+#lector[data-tema=kyrien]{background:linear-gradient(180deg,#efe2c4,#e4d2ad);color:#3a2a18;backdrop-filter:none}
+#lector[data-tema=kyrien] .cab{border-bottom:1px solid #9c7a3c}
+#lector[data-tema=kyrien] #lectorTitulo{font:700 16px 'Cinzel',Georgia,serif;color:#5a3d16}
+#lector[data-tema=kyrien] #lectorTitulo small{font:italic 600 15px 'Cormorant Garamond',Georgia,serif;letter-spacing:0;text-transform:none;color:#6b5434}
+#lector[data-tema=kyrien] button{color:#3a2a18;border-color:#9c7a3c;font:600 15px 'Cormorant Garamond',Georgia,serif}
+#lector[data-tema=kyrien] #lectorTexto{font:500 19px/1.6 'Cormorant Garamond',Georgia,serif}
+#lector[data-tema=kyrien] #lectorTexto h2{font:600 22px/1.3 'Cinzel',Georgia,serif;color:#5a3d16;letter-spacing:.02em}
+#lector[data-tema=kyrien] #lectorTexto mark{background:rgba(217,160,60,.35);color:#2e1d08}
+#lector[data-tema=kyrien] #lectorTexto p.pasaje{background:rgba(217,160,60,.14);box-shadow:-8px 0 0 rgba(217,160,60,.14),8px 0 0 rgba(217,160,60,.14)}
+#lector[data-tema=kyrien] a.enlace{color:#6b3d0a;font-weight:700}
+#lector .ruta{font:italic 600 14px 'Cormorant Garamond',Georgia,serif;opacity:.8}
+.etq{display:inline-block;margin-left:6px;padding:0 6px;border-radius:3px;font:600 11px var(--mono,monospace);letter-spacing:.06em;background:rgba(122,111,240,.18);color:inherit}
+#lector[data-tema=kyrien] .etq,.tema-kyrien .hoja .etq{background:rgba(217,160,60,.3);font:600 12px 'Cormorant Garamond',Georgia,serif}
+
+/* ---------- Hojas (menú ☰, ajustes, índice, estructura) en el mundo de Kyrien ---------- */
+.tema-kyrien .hoja .caja{background:#3a2b1d;border-color:var(--linea);color:var(--txt);box-shadow:0 -10px 50px rgba(240,190,100,.18)}
+.tema-kyrien .hoja h2{font:600 18px var(--tituloK);letter-spacing:.14em;color:var(--oro-claro)}
+.tema-kyrien .hoja h3{font:600 12px var(--tituloK);letter-spacing:.2em;color:var(--dim)}
+.tema-kyrien .hoja header{border-bottom-color:var(--linea)}
+.tema-kyrien .hoja .contenido{font:500 16px/1.45 var(--textoK)}
+.tema-kyrien .cifra,.tema-kyrien .doc{border-color:var(--linea)}
+.tema-kyrien .cifra b{font:700 20px var(--textoK);color:var(--oro-claro)}
+.tema-kyrien .muestra .r{font:700 14px var(--textoK);color:var(--oro-claro)}
+.tema-kyrien .ir input{background:rgba(239,226,196,.1);border-color:var(--linea);color:var(--txt);font:500 17px var(--textoK)}
+
+@media (max-width:520px){
+  .tema-kyrien .panel-dato{bottom:12px;width:44%;font-size:13.5px}
+  .titulo-col.t-kyrien h2{font-size:29px}
+  .marca .t-kyrien{font-size:16px;letter-spacing:.24em}
+}

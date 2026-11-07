@@ -29,10 +29,10 @@ jobs:
           mkdir _sitio
           cp -r index.html manifest.webmanifest sw.js css js iconos fuentes _sitio/
           mkdir _sitio/pruebas
-          cp pruebas/index.html pruebas/pruebas.js pruebas/generador.js pruebas/FICTICIO-documento-de-prueba.docx _sitio/pruebas/
+          cp pruebas/index.html pruebas/pruebas.js pruebas/pruebas-doctrina.js pruebas/generador.js pruebas/generador-doctrina.js pruebas/FICTICIO-documento-de-prueba.docx pruebas/FICTICIO-doctrina-de-prueba.docx _sitio/pruebas/
           touch _sitio/.nojekyll
-          # Salvaguarda de privacidad: el único .docx permitido es el ficticio de prueba.
-          if find _sitio -iname '*.doc*' -o -iname '*.pdf' -o -iname '*.odt' -o -iname '*.rtf' | grep -v 'pruebas/FICTICIO-documento-de-prueba.docx'; then
+          # Salvaguarda de privacidad: los únicos .docx permitidos son los ficticios de prueba.
+          if find _sitio -iname '*.doc*' -o -iname '*.pdf' -o -iname '*.odt' -o -iname '*.rtf' | grep -v -e 'pruebas/FICTICIO-documento-de-prueba.docx' -e 'pruebas/FICTICIO-doctrina-de-prueba.docx'; then
             echo "Hay documentos que no deben publicarse"; exit 1
           fi
       - uses: actions/configure-pages@v5

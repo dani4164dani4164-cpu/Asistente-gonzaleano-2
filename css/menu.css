@@ -1,0 +1,63 @@
+/* ============================================================
+   Selector de asistente, menú de inicio (nebulosa y orbes),
+   ajustes y árbol de «Estructura detectada».
+   (prototipo/transicion/ y prototipo/menu/)
+   ============================================================ */
+
+/* ---------- Selector AGIOS | KYRIEN ---------- */
+.selector{display:flex;justify-content:center;gap:0;margin:4px auto 0;padding:3px;border:1px solid var(--linea);border-radius:999px;background:var(--chip);
+  transition:border-color 1.2s,background 1.2s,opacity 1.2s;width:max-content;max-width:calc(100% - 32px)}
+.selector button{border:none;background:transparent;color:var(--dim);padding:7px 18px;border-radius:999px;font:600 13px system-ui,sans-serif;letter-spacing:.12em;cursor:pointer;transition:color .6s,background .6s,box-shadow .6s}
+.selector button.on{color:#120d06;background:var(--acento);box-shadow:0 0 14px var(--acento)}
+.selector button:disabled{cursor:wait;opacity:1}
+.tema-kyrien .selector button{font:600 13px system-ui,sans-serif;border:0}
+
+/* ---------- Menú: la nebulosa ---------- */
+#cielo{position:fixed;inset:0;z-index:1;pointer-events:none;transition:opacity 1s ease}
+#cielo.oculto{opacity:0}
+.nebulosa{position:absolute;inset:0;width:100%;height:100%}
+body.tema-menu{background:#04030a}
+.tema-menu>header,.tema-menu>.reglas,.tema-menu>.selector,.tema-menu #zona,.tema-menu>.consola{opacity:0;pointer-events:none}
+#menu{position:fixed;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;
+  padding:calc(env(safe-area-inset-top) + 34px) 16px calc(env(safe-area-inset-bottom) + 22px);transition:opacity 1.2s ease}
+#menu.fuera{opacity:0;pointer-events:none}
+#menu h1{margin:0;font:600 clamp(34px,9vw,58px) 'Rajdhani',sans-serif;letter-spacing:.5em;padding-left:.5em;
+  background:linear-gradient(180deg,#ffffff 0%,#e3ecf7 30%,#b9c9de 52%,#dfe8f4 70%,#9fb3cf 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 1px rgba(255,255,255,.6)) drop-shadow(0 0 16px rgba(150,185,235,.45))}
+#menu .lema{font:italic 500 17px 'Cormorant Garamond',serif;letter-spacing:.14em;color:#d8cff5;opacity:.85;margin-top:2px}
+#menu .lema2{font:500 10px 'JetBrains Mono',monospace;letter-spacing:.3em;color:#8f86c8;margin-top:10px}
+.orbes{flex:1;position:relative;width:100%;max-width:760px}
+.orbe{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:10px;border:none;background:none;cursor:pointer;color:#fff;padding:0}
+.orbe:active{background:none}
+.orbe .bola{width:clamp(96px,24vw,140px);aspect-ratio:1;border-radius:50%;position:relative;animation:latir 4s ease-in-out infinite}
+.orbe .bola::before,.orbe .bola::after{content:'';position:absolute;inset:-14%;border-radius:50%;border:1px solid currentColor;opacity:.45;animation:girar 14s linear infinite}
+.orbe .bola::after{inset:-26%;border-style:dashed;opacity:.25;animation-duration:26s;animation-direction:reverse}
+.orbe.t-agios{color:#8f86ff}
+.orbe.t-agios .bola{background:radial-gradient(circle at 50% 50%,#fff 0%,#c9c2ff 8%,#7a6ff0 26%,rgba(80,110,240,.45) 48%,rgba(60,40,160,0) 70%);box-shadow:0 0 60px 10px rgba(122,111,240,.45)}
+.orbe.t-kyrien{color:#f0b04a}
+.orbe.t-kyrien .bola{background:radial-gradient(circle at 50% 50%,#fff 0%,#ffe3b0 8%,#ff9a3c 26%,rgba(220,110,40,.45) 48%,rgba(160,60,20,0) 70%);box-shadow:0 0 60px 10px rgba(255,150,60,.42);animation-delay:-2s}
+.orbe b{font:600 20px 'Rajdhani',sans-serif;letter-spacing:.42em;padding-left:.42em;text-shadow:0 0 14px currentColor}
+.orbe.t-kyrien b{font-family:'Cinzel',serif;letter-spacing:.3em}
+.orbe small{font:italic 500 15px 'Cormorant Garamond',serif;color:#e6def7;letter-spacing:.06em;margin-top:-6px}
+@keyframes latir{50%{transform:scale(1.06);filter:brightness(1.15)}}
+/* Sin WebGL 2: un menú estático (el fondo lo pone el CSS) */
+.sin-webgl #cielo{background:radial-gradient(ellipse at 30% 30%,rgba(123,108,255,.35),transparent 50%),radial-gradient(ellipse at 70% 70%,rgba(255,138,80,.28),transparent 50%),radial-gradient(ellipse at 50% 50%,rgba(63,208,200,.15),transparent 60%),#04030a}
+
+/* ---------- Ajustes (en el menú ☰): toman los colores del tema activo ---------- */
+.ajustes .grupo{font:500 11px 'JetBrains Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:4px 0 8px}
+.tema-kyrien .ajustes .grupo{font:italic 600 14px 'Cormorant Garamond',serif;letter-spacing:.06em;text-transform:none}
+.op{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--linea);border-radius:9px;margin-bottom:8px;cursor:pointer}
+.op input{accent-color:var(--acento);margin-top:3px}
+.op b{display:block;font-weight:600}.op small{display:block;color:var(--dim);margin-top:2px}
+.op:has(input:checked){border-color:var(--acento);box-shadow:0 0 12px color-mix(in srgb,var(--acento) 25%,transparent)}
+.grupo-ajuste{margin-bottom:10px}
+
+/* ---------- Árbol plegable (Estructura detectada e Índice de la Doctrina) ---------- */
+.arbol,.arbol ul{list-style:none;margin:0;padding-left:0}
+.arbol ul{padding-left:16px;border-left:1px solid var(--linea);margin-left:6px}
+.arbol li{margin:2px 0}
+.arbol summary{cursor:pointer;padding:2px 0}
+.arbol summary small{opacity:.65;margin-left:6px;font-size:.85em}
+.arbol .n-bloque>details>summary{font-weight:700}
+.arbol .n-parte>details>summary{font-style:italic}
+.arbol button.ir-pieza{border:0;background:none;padding:2px 0;text-align:left;color:inherit;font:inherit;text-decoration:underline;text-decoration-color:var(--linea);text-underline-offset:3px;cursor:pointer}

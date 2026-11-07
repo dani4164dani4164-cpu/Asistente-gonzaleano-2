@@ -36,11 +36,13 @@ export function htmlEstructura(inf, { documento, error = false } = {}) {
   h += '<h3>Resumen</h3><div class="cifras">' +
     inf.resumen.map(r => `<div class="cifra"><b>${e(r.valor)}</b><span>${e(r.etiqueta)}</span></div>`).join('') + '</div>';
   const a = inf.actualizacion;
-  if (a) h += `<h3>Actualización</h3><p style="margin:0">${a.nuevas} nuevas · ${a.modificadas} modificadas · ${a.sinCambios} sin cambios · ${a.eliminadas} eliminadas. ` +
-    `Solo las nuevas o modificadas se volvieron a procesar.</p>`;
+  if (a) h += `<h3>Actualización</h3><p style="margin:0">${a.nuevas} nuevas · ${a.modificadas} modificadas · ${a.sinCambios} sin cambios · ${a.eliminadas} eliminadas` +
+    (a.renombradas ? ` · ${a.renombradas} renombradas` : '') + `. Solo las nuevas o modificadas se volvieron a procesar` +
+    (a.renombradas ? '; las renombradas conservaron su índice' : '') + '.</p>';
   if (inf.avisos.length) {
     for (const av of inf.avisos) h += `<h3>${e(av.titulo)}</h3><ul>${av.items.map(i => `<li>${e(i)}</li>`).join('')}</ul>`;
   } else if (inf.ok) h += '<h3>Revisión</h3><p style="margin:0">Sin números faltantes, repetidos ni fuera de orden. Todos los encabezados se reconocieron.</p>';
+  if (inf.arbol?.length) h += '<h3>Árbol</h3>' + htmlArbol(inf.arbol);
   if (inf.muestra?.length) {
     h += '<h3>Muestra</h3>';
     for (const m of inf.muestra) {
@@ -51,16 +53,31 @@ export function htmlEstructura(inf, { documento, error = false } = {}) {
   return h;
 }
 
-/** HTML del menú: documentos cargados, espacio usado y acciones. */
-export function htmlMenu({ colecciones, uso, persistente, sinConexion }) {
-  let h = '<h3>Documentos cargados</h3>';
+/* Árbol plegable Bloque → (Parte) → Capítulo → Sección */
+const NIVEL = { bloque: 'Bloque', parte: 'Parte', capitulo: 'Capítulo', seccion: 'Sección' };
+function contar(n) { let c = 0, s = 0; const r = x => x.hijos?.forEach(h => { if (h.tipo === 'capitulo') c++; if (h.tipo === 'seccion') s++; r(h); }); r(n); return { c, s }; }
+export function htmlArbol(nodos, { botones = false } = {}) {
+  const item = n => {
+    const etq = (n.etiquetas || []).map(t => `<span class="etq">${e(t)}</span>`).join('');
+    const nombre = botones && n.id ? `<button type="button" class="ir-pieza" data-id="${e(n.id)}">${e(n.titulo)}</button>` : `<span>${e(n.titulo)}</span>`;
+    if (!n.hijos?.length) return `<li class="hoja-arbol n-${n.tipo}">${nombre}${etq}</li>`;
+    const { c, s } = contar(n);
+    const cuenta = [c ? `${c} cap.` : '', s ? `${s} secc.` : ''].filter(Boolean).join(' · ');
+    return `<li class="n-${n.tipo}"><details${n.tipo === 'bloque' ? '' : ''}><summary>${nombre}${etq}${cuenta ? ` <small>${cuenta}</small>` : ''}</summary>` +
+      `<ul>${n.hijos.map(item).join('')}</ul></details></li>`;
+  };
+  return `<ul class="arbol">${nodos.map(item).join('')}</ul>`;
+}
+
+/** HTML del menú: documentos cargados, ajustes, espacio usado y acciones. */
+export function htmlMenu({ colecciones, uso, persistente, sinConexion, ajustes = '' }) {
+  let h = ajustes + '<h3>Documentos cargados</h3>';
   for (const c of colecciones) {
     const d = c.registro;
-    h += `<div class="doc" data-col="${e(c.id)}"><div class="nombre">${e(c.nombre)}${c.activa ? ' <span style="color:var(--dim);font-weight:400">(en uso)</span>' : ''}</div>`;
+    h += `<div class="doc" data-col="${e(c.id)}"><div class="nombre">${e(c.asistente || c.nombre)} · ${e(c.nombre)}${c.activa ? ' <span style="color:var(--dim);font-weight:400">(en uso)</span>' : ''}</div>`;
     if (d) {
-      const r = d.informe?.datos || {};
-      h += `<div class="det">${e(d.documento?.nombre || '')} · ${tamano(d.documento?.tamano)} · cargado ${fecha(d.actualizado)}</div>` +
-        `<div class="det">${r.conjuntos ?? '—'} conjuntos · ${r.lecturas ?? '—'} lecturas · ${r.salmos ?? '—'} salmos · ${r.evangelios ?? '—'} evangelios</div>` +
+        h += `<div class="det">${e(d.documento?.nombre || '')} · ${tamano(d.documento?.tamano)} · cargado ${fecha(d.actualizado)}</div>` +
+        `<div class="det">${e((d.informe?.resumen || []).slice(0, 4).map(x => `${x.valor} ${x.etiqueta.toLowerCase()}`).join(' · '))}</div>` +
         `<div class="det">Búsqueda por significado: ${e(c.estadoIndice)}</div>` +
         `<div class="botones">${c.activa ? '' : `<button type="button" data-accion="usar">Usar</button>`}` +
         `<button type="button" data-accion="estructura">Estructura</button><button type="button" data-accion="indice">Índice</button>` +
@@ -82,4 +99,34 @@ export function htmlMenu({ colecciones, uso, persistente, sinConexion }) {
   h += `<div>Uso sin conexión: <b>${sinConexion ? 'listo' : 'preparándose'}</b></div>`;
   h += '<h3>Privacidad</h3><p style="margin:0;color:var(--dim);font-size:13px">Tus documentos se leen y se guardan solo en este dispositivo. Anesthios nunca envía su texto por internet.</p>';
   return h;
+}
+
+/* ---------- Ajustes (lista ampliable: agrega una entrada a AJUSTES) ---------- */
+export const AJUSTES = [
+  { clave: 'anesthios.transicion', titulo: 'Transición entre asistentes', defecto: 'implosion', opciones: [
+    { valor: 'implosion', titulo: 'Implosión', desc: 'Se absorbe hacia su centro, destella y renace de una galaxia espiral' },
+    { valor: 'estallido', titulo: 'Estallido', desc: 'Estalla en partículas que se transforman en el otro asistente' },
+    { valor: 'azar', titulo: 'Al azar', desc: 'Cada cambio usa una de las dos' },
+  ] },
+  { clave: 'anesthios.inicio', titulo: 'Al abrir la app', defecto: 'menu', opciones: [
+    { valor: 'menu', titulo: 'Mostrar el menú', desc: 'La nebulosa con un orbe por asistente' },
+    { valor: 'ultimo', titulo: 'Entrar al último asistente usado', desc: 'Directo, sin pasar por el menú' },
+  ] },
+];
+export function leerAjuste(clave) {
+  const a = AJUSTES.find(x => x.clave === clave);
+  let v = null;
+  try { v = localStorage.getItem(clave); } catch {}
+  return a.opciones.some(o => o.valor === v) ? v : a.defecto;
+}
+export function guardarAjuste(clave, valor) { try { localStorage.setItem(clave, valor); } catch {} }
+export function htmlAjustes() {
+  let h = '<h3>Ajustes</h3><div class="ajustes">';
+  for (const a of AJUSTES) {
+    const actual = leerAjuste(a.clave);
+    h += `<div class="grupo-ajuste"><div class="grupo">${e(a.titulo)}</div>` + a.opciones.map(o =>
+      `<label class="op"><input type="radio" name="${e(a.clave)}" value="${e(o.valor)}"${o.valor === actual ? ' checked' : ''}>` +
+      `<span><b>${e(o.titulo)}</b><small>${e(o.desc)}</small></span></label>`).join('') + '</div>';
+  }
+  return h + '</div>';
 }

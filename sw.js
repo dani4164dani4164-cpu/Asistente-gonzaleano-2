@@ -11,20 +11,23 @@
      caché del navegador; aquí no se toca.
    Este archivo nunca ve ni envía el texto de tus documentos.
    ============================================================ */
-const VERSION = 'agios-app-v2';
+const VERSION = 'agios-app-v3';
 const CDN = 'agios-cdn-v1';
 
 const APP = [
-  './', './index.html', './manifest.webmanifest', './css/estilos.css', './css/fuentes.css',
+  './', './index.html', './manifest.webmanifest', './css/estilos.css', './css/fuentes.css', './css/kyrien.css', './css/menu.css',
   './js/app.js', './js/config.js', './js/colecciones.js', './js/db.js', './js/docx.js',
   './js/lector.js', './js/paneles.js', './js/texto.js', './js/ordinales.js', './js/trabajador.js',
-  './js/ventanas.js', './js/tablero.js',
-  './js/escenas/index.js', './js/escenas/agios.js',
-  './js/analizadores/index.js', './js/analizadores/lecturas.js',
+  './js/ventanas.js', './js/tablero.js', './js/temas.js',
+  './js/escenas/index.js', './js/escenas/agios.js', './js/escenas/kyrien.js', './js/escenas/transicion.js', './js/escenas/nebulosa.js',
+  './js/analizadores/index.js', './js/analizadores/lecturas.js', './js/analizadores/doctrina.js',
   './js/motor/buscador.js', './js/motor/fragmentos.js',
   './fuentes/rajdhani-latin-400-normal.woff2', './fuentes/rajdhani-latin-500-normal.woff2',
   './fuentes/rajdhani-latin-600-normal.woff2', './fuentes/rajdhani-latin-700-normal.woff2',
   './fuentes/jetbrains-mono-latin-400-normal.woff2', './fuentes/jetbrains-mono-latin-500-normal.woff2',
+  './fuentes/cinzel-latin-500-normal.woff2', './fuentes/cinzel-latin-600-normal.woff2', './fuentes/cinzel-latin-700-normal.woff2',
+  './fuentes/cormorant-garamond-latin-500-normal.woff2', './fuentes/cormorant-garamond-latin-600-normal.woff2', './fuentes/cormorant-garamond-latin-700-normal.woff2',
+  './fuentes/cormorant-garamond-latin-500-italic.woff2', './fuentes/cormorant-garamond-latin-600-italic.woff2',
   './iconos/icono.svg', './iconos/icono-180.png', './iconos/icono-192.png', './iconos/icono-512.png', './iconos/icono-maskable-512.png',
 ];
 /* Mismas versiones que el import map de index.html y js/config.js */

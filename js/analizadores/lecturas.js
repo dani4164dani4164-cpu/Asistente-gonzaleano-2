@@ -23,6 +23,8 @@ export const TIPOS = {
   evangelio: { nombre: 'Santo Evangelio', abrev: 'Evang. Gonz.', corto: 'Evangelio', orden: 2 },
 };
 export const NOMBRE_GRUPO = 'conjunto';
+export const PANEL = { etiqueta: 'Conjuntos', campo: 'conjuntos' };
+export const EJEMPLOS = ['Evang. Gonz. 145', 'salmo 87', 'la misericordia del Padre'];
 
 /* ---------- Encabezados ---------- */
 const RE_PIEZA = /^(.+?) sant[oa] (lectura|salmo|evangelio)\b ?(.*)$/;
@@ -268,4 +270,10 @@ export function etiqueta(p) {
     ref: `${t.abrev} ${p.numero}${p.repetida ? ` (repetida ${p.repetida})` : ''}`,
     tipo: t.nombre + (p.apellido ? ' ' + p.apellido : ''),
   };
+}
+
+/** Etiqueta corta del panel «Abiertas»: L·23, S·87, E·24 */
+export function corta(p) {
+  const t = TIPOS[p.tipo];
+  return t ? `${t.corto[0]}·${p.numero}` : 'Intro';
 }

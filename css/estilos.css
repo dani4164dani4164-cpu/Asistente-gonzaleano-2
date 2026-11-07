@@ -1,4 +1,5 @@
-/* Anesthios — estilos (copiados del prototipo aprobado prototipo/anesthios/) */
+/* Anesthios — estilos base y mundo de Agios (prototipo/anesthios/).
+   Kyrien: css/kyrien.css · Menú, selector, transición y ajustes: css/menu.css */
 :root{
   --bg:#07070d;--txt:#CECBF6;--dim:#7d78b8;--tenue:#4a4590;--line:#2c2766;--acc:#7a6ff0;--acc2:#5aa0f0;
   --glass:rgba(14,12,36,.78);--titulo:'Rajdhani',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;
@@ -10,8 +11,11 @@ body{display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(saf
 
 /* ---------- Barra superior: nombre de la app ---------- */
 .barra-sup{display:flex;align-items:center;gap:12px;padding:12px 16px 8px;position:relative}
-.marca{font:600 20px var(--titulo);letter-spacing:.42em;color:#e4e1ff;text-shadow:0 0 14px rgba(122,111,240,.55);white-space:nowrap;flex:none}
-.marca small{display:block;font:500 9px var(--mono);letter-spacing:.25em;color:var(--tenue);margin-top:1px}
+.marca{position:relative;flex:none;height:38px;width:clamp(150px,44vw,230px);border:0;background:none;padding:0;text-align:left;cursor:pointer;color:inherit;border-radius:0}
+.marca:active{background:none}
+.marca .v{position:absolute;left:0;top:0;white-space:nowrap;transition:opacity 1.2s}
+.marca .t-agios{font:600 20px var(--titulo);letter-spacing:.42em;color:#e4e1ff;text-shadow:0 0 14px rgba(122,111,240,.55)}
+.marca .t-agios small{display:block;font:500 9px var(--mono);letter-spacing:.25em;color:var(--tenue);margin-top:1px}
 .barra-sup .esp{flex:1}
 .chip-estado{font:500 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);display:flex;align-items:center;gap:7px;white-space:nowrap;
   padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:rgba(20,18,50,.5);min-width:0;overflow:hidden}
@@ -22,7 +26,9 @@ body{display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(saf
 .chip-estado.err i{background:#ff4d5e;box-shadow:0 0 8px 2px rgba(255,77,94,.7)}
 .boton-menu{flex:none;width:38px;height:34px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--txt);font-size:16px;padding:0}
 /* regla con marcas bajo la barra */
-.regla{height:9px;margin:0 16px;background:
+.reglas{position:relative;height:12px;margin:0 16px}
+.reglas .regla{position:absolute;inset:0;transition:opacity 1.2s}
+.regla.t-agios{height:9px;top:auto;background:
     repeating-linear-gradient(90deg,var(--line) 0 1px,transparent 1px 12px) bottom/100% 4px no-repeat,
     repeating-linear-gradient(90deg,var(--tenue) 0 1px,transparent 1px 60px) bottom/100% 9px no-repeat,
     linear-gradient(var(--line),var(--line)) bottom/100% 1px no-repeat;opacity:.8}
@@ -57,7 +63,8 @@ body{display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(saf
 .esquina.d{bottom:10px;right:10px;border-left:none;border-top:none}
 
 /* Nombre del asistente (colección) */
-.titulo-col{position:absolute;top:22px;left:0;right:0;text-align:center;pointer-events:none}
+.titulo-col{position:absolute;top:22px;left:0;right:0;text-align:center;pointer-events:none;transition:opacity 1.8s,transform 1.8s,filter 1.8s}
+.titulo-col.fuera{opacity:0;transform:scale(1.15);filter:blur(6px)}
 .titulo-col h2{margin:0;font:600 34px var(--titulo);letter-spacing:.6em;padding-left:.6em;color:#ece9ff;
   text-shadow:0 0 18px rgba(122,111,240,.7),0 0 2px #fff;transition:color .6s,text-shadow .6s}
 .titulo-col.apagado h2{color:#9a98b0;text-shadow:0 0 8px rgba(160,160,190,.25)}
@@ -65,7 +72,7 @@ body{display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(saf
 .titulo-col .sub::before,.titulo-col .sub::after{content:'';width:46px;height:1px;background:linear-gradient(90deg,transparent,var(--acc))}
 .titulo-col .sub::after{transform:scaleX(-1)}
 /* Avisos de Agios (bajo su nombre) */
-#hint{margin:8px auto 0;max-width:min(92%,520px);font:500 11px/1.45 var(--mono);color:var(--dim);letter-spacing:.02em;min-height:0;transition:opacity .4s}
+#hint{position:absolute;top:84px;left:0;right:0;z-index:2;pointer-events:none;text-align:center;margin:0 auto;max-width:min(92%,520px);font:500 11px/1.45 var(--mono);color:var(--dim);letter-spacing:.02em;min-height:0;transition:opacity .4s}
 #hint:empty{display:none}
 #hint.err{color:#ff9aa4}#hint.ok{color:#9ff0c2}
 
@@ -190,4 +197,43 @@ button.peligro{border-color:rgba(255,77,94,.6);color:#ffb3bb}
 .ir{display:flex;gap:8px;margin-bottom:10px}
 .ir input{flex:1;min-width:0;background:#0f0d24;border:1px solid #3a3480;border-radius:8px;color:var(--txt);padding:9px 10px;font-size:15px}
 
-@media (max-width:520px){.marca{font-size:17px;letter-spacing:.3em}.marca small{letter-spacing:.15em}.chip-estado{font-size:10px;padding:5px 8px}.panel-dato{bottom:14px;width:44%;font-size:9.5px}.titulo-col h2{font-size:28px}}
+@media (max-width:520px){.marca .t-agios{font-size:17px;letter-spacing:.3em}.marca .t-agios small{letter-spacing:.15em}.chip-estado{font-size:10px;padding:5px 8px}.panel-dato{bottom:14px;width:44%;font-size:9.5px}.titulo-col h2{font-size:28px}}
+
+/* ============================================================
+   Varios asistentes en una misma app
+   ============================================================ */
+.tema-agios{--acento:#7a6ff0;--linea:#2c2766;--chip:rgba(20,18,50,.5);--claro:#e4e1ff;--panel:#0f0d24}
+html{background:#07070d}
+body{background:transparent;transition:color 1.2s}
+/* Fondos de cada mundo, que se funden entre sí */
+.mundo{position:fixed;inset:0;pointer-events:none;transition:opacity 2.4s ease;z-index:0}
+.mundo.agios{background:radial-gradient(circle at 50% 52%,rgba(90,80,220,.10),transparent 55%),#07070d}
+.mundo.kyrien{background:radial-gradient(ellipse at 50% 48%,#5a4228 0%,#3d2d1f 32%,#2a2018 62%,#1d1612 100%)}
+.mundo.kyrien::after{content:'';position:absolute;inset:0;opacity:.6;background-image:radial-gradient(1px 1px at 12% 18%,#f6e3b4,transparent),radial-gradient(1px 1px at 78% 12%,#f6e3b4,transparent),
+  radial-gradient(1.5px 1.5px at 33% 72%,#f6e3b4,transparent),radial-gradient(1px 1px at 88% 64%,#f6e3b4,transparent),radial-gradient(1px 1px at 52% 30%,#f6e3b4,transparent),
+  radial-gradient(1.5px 1.5px at 18% 88%,#f6e3b4,transparent),radial-gradient(1px 1px at 66% 86%,#f6e3b4,transparent),radial-gradient(1px 1px at 92% 34%,#f6e3b4,transparent),
+  radial-gradient(1px 1px at 42% 8%,#f6e3b4,transparent),radial-gradient(1px 1px at 6% 50%,#f6e3b4,transparent);animation:titilar 6s ease-in-out infinite alternate}
+@keyframes titilar{from{opacity:.35}to{opacity:.7}}
+.tema-agios .mundo.kyrien,.tema-kyrien .mundo.agios,.tema-menu .mundo{opacity:0}
+body>header,body>.reglas,body>.selector,#zona,body>.consola{position:relative;z-index:2;transition:opacity 1.2s ease}
+
+/* Piezas propias de cada tema: se funden al cambiar de mundo */
+.tema-agios .marca .t-kyrien,.tema-kyrien .marca .t-agios,
+.tema-agios .regla.t-kyrien,.tema-kyrien .regla.t-agios,
+.tema-agios .decor.t-kyrien,.tema-kyrien .decor.t-agios,
+.tema-menu .marca .v,.tema-menu .regla,.tema-menu .decor{opacity:0}
+.decor{position:absolute;inset:0;pointer-events:none;transition:opacity 2.4s ease}
+.tema-agios .campo .t-kyrien,.tema-kyrien .campo .t-agios{display:none}
+
+/* Escenas de cada asistente (una capa por asistente) */
+.capa{position:absolute;inset:0;transform-origin:50% 52%}
+.escena.transicion{pointer-events:none;opacity:0;z-index:2}
+#fogonazo{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:0;background:radial-gradient(circle at 50% 52%,rgba(255,250,235,.95),rgba(255,230,190,.5) 12%,rgba(255,200,140,.12) 35%,transparent 60%)}
+.titulos{position:absolute;left:0;right:0;top:0;height:80px;pointer-events:none;z-index:1}
+/* Ventanas de cada asistente: solo se ven las del activo */
+.resultados-col{position:absolute;inset:0;pointer-events:none}
+.resultados-col[hidden]{display:none}
+/* Cambio sin WebGL 2: fundido simple */
+#stage.fundido .capa{transition:opacity .9s ease}
+a.enlace{color:inherit;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer}
+.tarjeta.t-agios a.enlace,#lector[data-tema=agios] a.enlace{color:#c2bbff}
