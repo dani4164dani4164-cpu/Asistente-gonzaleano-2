@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07070d">
+<title>Pruebas de Agios</title>
+<style>
+  :root{--bg:#07070d;--txt:#CECBF6;--dim:#7d78b8;--line:#2c2766}
+  body{margin:0;padding:16px;background:var(--bg);color:var(--txt);font:15px/1.5 system-ui,sans-serif;max-width:760px;margin:auto}
+  h1{font-size:18px;letter-spacing:.08em}
+  p{color:var(--dim);font-size:13px}
+  ul{list-style:none;padding:0}li{padding:4px 0;border-bottom:1px solid var(--line)}
+  .ok{color:#3ddc84}.mal{color:#ff4d5e}
+  pre{white-space:pre-wrap;color:#ffb3bb;font-size:12px;margin:4px 0 0}
+  #resumen{font-weight:600}
+  button{background:#1d1950;color:var(--txt);border:1px solid #7a6ff0;border-radius:10px;padding:9px 12px;font-size:14px}
+  a{color:#b9b2ff}
+</style>
+<script type="importmap">
+{"imports":{"jszip":"https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm"}}
+</script>
+</head>
+<body>
+<h1>PRUEBAS DE AGIOS</h1>
+<p>Convertidor de ordinales, analizador, marcas, fragmentos, referencias y búsqueda exacta. Todo con texto inventado: aquí no se usa ningún documento real.</p>
+<div id="resumen">Corriendo…</div>
+<ul id="lista"></ul>
+<h1>DOCUMENTO DE PRUEBA</h1>
+<p>Documento FICTICIO con la misma estructura que el real (371 conjuntos, 89–94 sin Evangelio, variantes de espacios y acentos). Súbelo a Agios con 📎 para probarla.</p>
+<p><a href="./FICTICIO-documento-de-prueba.docx" download>Descargar documento de prueba</a> ·
+  <button id="v2" type="button">Generar versión 2 (para probar la actualización)</button></p>
+<p><a href="../">← Volver a Agios</a></p>
+<script type="module" src="./pruebas.js"></script>
+<script type="module">
+import { generarDocumento } from './generador.js';
+document.getElementById('v2').onclick = async () => {
+  const m = await import('jszip'); const JSZip = m.default || m;
+  const datos = await generarDocumento(JSZip, { conjuntos: 372, modificar: [{ tipo: 'lectura', numero: 12 }, { tipo: 'evangelio', numero: 300 }] });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([datos], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
+  a.download = 'FICTICIO-documento-de-prueba-v2.docx'; a.click();
+};
+</script>
+</body>
+</html>

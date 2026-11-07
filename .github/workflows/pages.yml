@@ -1,0 +1,43 @@
+# Publica Agios en GitHub Pages en cada push a main.
+# Requisito (una sola vez): Settings → Pages → Source: «GitHub Actions».
+name: Publicar en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preparar el sitio (solo los archivos de la app y las pruebas)
+        run: |
+          mkdir _sitio
+          cp -r index.html manifest.webmanifest sw.js css js iconos _sitio/
+          mkdir _sitio/pruebas
+          cp pruebas/index.html pruebas/pruebas.js pruebas/generador.js pruebas/FICTICIO-documento-de-prueba.docx _sitio/pruebas/
+          touch _sitio/.nojekyll
+          # Salvaguarda de privacidad: el único .docx permitido es el ficticio de prueba.
+          if find _sitio -iname '*.doc*' -o -iname '*.pdf' -o -iname '*.odt' -o -iname '*.rtf' | grep -v 'pruebas/FICTICIO-documento-de-prueba.docx'; then
+            echo "Hay documentos que no deben publicarse"; exit 1
+          fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _sitio
+      - id: despliegue
+        uses: actions/deploy-pages@v4

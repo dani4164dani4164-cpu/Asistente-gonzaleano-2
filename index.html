@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#07070d">
+<meta name="description" content="Agios: localiza, busca y lee las Lecturas, Salmos y Evangelios Gonzaleanos de tu documento, en tu dispositivo.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Agios">
+<title>Agios</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./iconos/icono.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./iconos/icono-180.png">
+<link rel="stylesheet" href="./css/estilos.css">
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "jszip":"https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm"
+}}
+</script>
+</head>
+<body>
+<header>
+  <h1>AGIOS<small id="nombreColeccion">Lecturas y Evangelios</small></h1>
+  <div class="der">
+    <span id="estado">apagado</span>
+    <button id="btnMenu" type="button" title="Menú" aria-label="Menú">☰</button>
+  </div>
+</header>
+
+<div id="zona">
+  <div id="stage"></div>
+  <div id="capa">
+    <div id="resultados"></div>
+    <div id="subir">
+      <h2>Subir archivo</h2>
+      <p id="subirTexto">Elige el .docx de Lecturas y Evangelios Gonzaleanos</p>
+      <div class="fila">
+        <button id="cancelarSubir" type="button" style="flex:1">Cancelar</button>
+        <button id="elegir" class="prim" type="button" style="flex:1.4">Elegir archivo</button>
+      </div>
+      <input id="archivo" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+    </div>
+  </div>
+  <div id="hint">Toca a Agios para encenderlo</div>
+</div>
+
+<form class="barra" id="form">
+  <button id="btnSubir" class="icono" type="button" title="Subir archivo" aria-label="Subir archivo" disabled>📎</button>
+  <input id="consulta" placeholder="Toca a Agios para encenderlo" autocomplete="off" enterkeyhint="search" disabled>
+  <button id="btnBuscar" class="icono prim" type="submit" title="Buscar" aria-label="Buscar" disabled>➤</button>
+</form>
+
+<div id="lector" role="dialog" aria-modal="true" aria-labelledby="lectorTitulo">
+  <header>
+    <span id="lectorTitulo"></span>
+    <button id="cerrarLector" type="button">Cerrar</button>
+  </header>
+  <nav class="nav">
+    <button id="lecAnterior" type="button" title="Pieza anterior">◀</button>
+    <div class="tipos" id="lecTipos"></div>
+    <button id="lecSiguiente" type="button" title="Pieza siguiente">▶</button>
+    <button id="lecIndice" type="button" title="Índice">Índice</button>
+  </nav>
+  <article id="lectorTexto"></article>
+</div>
+
+<div id="hoja" class="hoja" role="dialog" aria-modal="true" aria-labelledby="hojaTitulo">
+  <div class="caja">
+    <header><h2 id="hojaTitulo"></h2><button id="cerrarHoja" type="button">Cerrar</button></header>
+    <div class="contenido" id="hojaContenido"></div>
+  </div>
+</div>
+
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>
