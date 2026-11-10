@@ -7,6 +7,8 @@
      - selector AGIOS | KYRIEN con transición (Implosión o Estallido)
      - máquina de estados del asistente activo, subida y procesamiento,
        búsqueda, ventanas, paneles, lector y menú ☰ (con Ajustes)
+     - modo Dominus nostrum (js/dominus/): la consola le pasa cada envío
+       antes de buscar; se apaga al apagar, cambiar o volver al menú
    Los datos guardados (IndexedDB «agios») NO cambian de forma: cada
    colección guarda los suyos con su id y nada de esto los toca.
    ============================================================ */
@@ -23,6 +25,7 @@ import { crearVentanas } from './ventanas.js';
 import { crearTablero } from './tablero.js';
 import { tema as temaDe } from './temas.js';
 import { abrirHoja, cerrarHoja, hojaAbierta, htmlEstructura, htmlMenu, htmlAjustes, leerAjuste, guardarAjuste } from './paneles.js';
+import { crearModo } from './dominus/modo.js';
 
 const $ = id => document.getElementById(id);
 const stage = $('stage'), zona = $('zona');
@@ -43,7 +46,7 @@ document.querySelectorAll('.filigrana').forEach(f => { f.innerHTML = FILIGRANA; 
 
 /* ---------- Un asistente por colección ---------- */
 const nuevoS = () => ({ energy: 0, mult: 1, apertura: 0, temblor: 0, destello: { color: new THREE.Color(), k: 0, h: 0 },
-  particles: 90, rot: 0, rotVel: 0, tilt: 0, zoom: 1, T: 0 });
+  particles: 90, rot: 0, rotVel: 0, tilt: 0, zoom: 1, T: 0, caos: 0 });
 const AST = {};
 const MODS = {};
 const idLecturas = COLECCIONES.find(c => c.analizador === 'lecturas')?.id;
@@ -107,17 +110,27 @@ function escenaDe(id) {
 let trans = null, neb = null;
 function asegurarTrans() { if (!trans && WEBGL2) { trans = crearTransicion(stage); layout(); } return trans; }
 function asegurarNeb() { if (!neb && WEBGL2) { neb = crearNebulosa($('cielo')); layout(); } return neb; }
+/* Tamaño real del área, SIN transformaciones: el encogido de Dominus nostrum
+   (y las de las transiciones) no deben cambiar el tamaño de las escenas. */
 function layout() {
-  const r = stage.getBoundingClientRect();
-  if (r.width && r.height) {
-    for (const id in AST) AST[id].escena?.redimensionar(r.width, r.height);
-    trans?.redimensionar(r.width, r.height);
+  const w = stage.clientWidth, h = stage.clientHeight;
+  if (w && h) {
+    for (const id in AST) AST[id].escena?.redimensionar(w, h);
+    trans?.redimensionar(w, h);
   }
-  if (neb) { neb.redimensionar(innerWidth, innerHeight); if (r.width) neb.encuadre(r); }
+  if (neb) {
+    neb.redimensionar(innerWidth, innerHeight);
+    const z = zona.getBoundingClientRect();
+    if (w) neb.encuadre({ left: z.left + stage.offsetLeft, top: z.top + stage.offsetTop, width: w, height: h });
+  }
   layoutOrbes();
 }
 addEventListener('resize', layout);
 new ResizeObserver(layout).observe(stage);
+/* #zona no se desplaza nunca (overflow:hidden). La decoración es más ancha que la
+   pantalla, y un scrollIntoView (foco, accesibilidad) la movería: el encogido de
+   Dominus nostrum y las ventanas miden respecto a ella. */
+zona.addEventListener('scroll', () => { if (zona.scrollLeft || zona.scrollTop) zona.scrollTo(0, 0); });
 
 /* Los orbes se acomodan para no encimarse (vertical u horizontal) */
 function layoutOrbes() {
@@ -145,6 +158,7 @@ const meta = { energy: 0, mult: 1, apertura: 0, temblor: 0 };
 const ast = () => AST[activa];
 const ponerTema = t => { document.body.className = 'tema-' + t; };
 const ocupado = () => !!cambio || !!viaje || ['procesando', 'buscando', 'esperando'].includes(modo);
+let dominus = null;             // modo Dominus nostrum (se crea más abajo)
 
 /* ---------- Datos de cada colección ---------- */
 async function cargarPiezas(id) {
@@ -227,9 +241,9 @@ function poner(m, texto) {
   modo = m;
   const a = ast();
   if (!a) return;
-  etiqueta(texto || a.T.estados[m] || m);
+  etiqueta(dominus?.etiqueta(m) || texto || a.T.estados[m] || m);
   const on = m !== 'apagado';
-  $('chip').className = 'chip-estado' + (m === 'exito' ? ' ok' : m === 'error' ? ' err' : on ? ' on' : '');
+  $('chip').className = 'chip-estado' + (m === 'exito' ? ' ok' : m === 'error' ? ' err' : on ? ' on' : '') + (dominus?.encendido && on ? ' dm' : '');
   a.titulo.classList.toggle('apagado', !on);
   meta.energy = on ? 1 : 0;
   meta.mult = { procesando: 3, buscando: 2 }[m] || 1;
@@ -239,8 +253,8 @@ function poner(m, texto) {
   if (m === 'esperando') poner.t = setTimeout(() => $('subir').classList.add('abierta'), 380); else $('subir').classList.remove('abierta');
   bloquear();
   const n = a.col.asistente || a.col.nombre;
-  $('consulta').placeholder = !on ? a.T.tocar(n) : m === 'procesando' ? a.T.procesando(n)
-    : m === 'transformando' ? '' : hayDocumento() ? a.T.pedir(n) : 'Sube tu documento con 📎';
+  $('consulta').placeholder = dominus?.placeholder(m) ?? (!on ? a.T.tocar(n) : m === 'procesando' ? a.T.procesando(n)
+    : m === 'transformando' ? '' : hayDocumento() ? a.T.pedir(n) : 'Sube tu documento con 📎');
   if (!on) pista('');
   else if (m === 'activo' && !pista.fija) pista(hayDocumento() ? '' : 'Toca 📎 para subir tu documento .docx');
   if (m === 'apagado' && actualizacionPendiente) recargarConVersionNueva();
@@ -264,7 +278,7 @@ function destellar(hex) { const S = ast().S; S.destello.color.set(hex); S.destel
 function alternar() {
   if (cambio || viaje || enMenu) return;
   if (modo === 'apagado') { poner('activo'); if (hayDocumento()) worker.postMessage({ tipo: 'precargar' }); }
-  else if (modo === 'activo') { ast().ventanas.cerrarTodas(); poner('apagado'); }
+  else if (modo === 'activo' || modo === 'dominus') { dominus.apagar('apagado'); ast().ventanas.cerrarTodas(); poner('apagado'); }
 }
 
 /* ---------- Subir archivo ---------- */
@@ -363,7 +377,7 @@ function pedirBusqueda(consulta, col) {
     worker.postMessage({ tipo: 'buscar', id, coleccion: col, analizador: AST[col].col.analizador, consulta });
   });
 }
-async function buscar(q) {
+async function buscar(q, { recordar: guardar = true } = {}) {
   q = (q || '').trim();
   if (!q || modo !== 'activo' || cambio || viaje) return;
   const a = ast();
@@ -379,9 +393,14 @@ async function buscar(q) {
   if (r.aviso) pista(r.aviso, n ? '' : 'err', 8000);
   else if (!n) pista('No encontré ese texto en tu documento.', 'err', 6000);
   a.ventanas.mostrar(r.resultados.map(x => ({ ...x, corta: x.corta || '·', col: a.id, tema: a.tema })));
-  recordar(q, a.id);
+  if (guardar) recordar(q, a.id);         // las preguntas a Dominus nostrum nunca se guardan
 }
-$('form').onsubmit = ev => { ev.preventDefault(); buscar($('consulta').value); };
+/* La consola: primero los comandos y preguntas de Dominus nostrum; si no, la búsqueda de siempre */
+$('form').onsubmit = ev => {
+  ev.preventDefault();
+  if (dominus.manejar($('consulta').value)) return;
+  buscar($('consulta').value);
+};
 
 /* ---------- Sugerencias: últimas 3 búsquedas (o ejemplos) e Índice ---------- */
 const claveRecientes = id => id === idLecturas ? 'anesthios.recientes' : `anesthios.recientes.${id}`;
@@ -406,7 +425,7 @@ function pintarSugerencias(id = activa) {
   }
 }
 $('sugIndice').onclick = () => lector.abrirIndice(activa);
-$('cerrarTodas').onclick = () => ast()?.ventanas.cerrarTodas();
+$('cerrarTodas').onclick = () => { ast()?.ventanas.cerrarTodas(); dominus.cerrarConversacion(); };
 
 /* ---------- Enlaces entre colecciones ---------- */
 const RE_LECT = /\b(Lect|Evang|Salmo)\.?\s*Gonz\.?\s*(\d{1,4})\b/g;
@@ -449,6 +468,7 @@ const DURACION = { implosion: 7000, estallido: 6000, fundido: 1400 };
 function cambiar(a) {
   if (!activa || a === activa || !AST[a] || ocupado() || enMenu) return;
   const de = activa, va = AST[de], llega = AST[a];
+  dominus.apagar('cambio');                                 // de inmediato, antes de la transición
   escenaDe(a);
   lector.cerrar(); if (hojaAbierta()) cerrarHoja();
   va.cont.hidden = true;                                    // sus ventanas se guardan
@@ -525,6 +545,7 @@ function entrar(id) {
 function volver() {
   if (viaje || enMenu || ocupado() || !activa) return;
   const a = ast();
+  dominus.apagar('menu');                                     // de inmediato, antes de la transición
   lector.cerrar(); if (hojaAbierta()) cerrarHoja();
   a.cont.hidden = true;                                       // sus ventanas se guardan
   viaje = { tipo: 'volver', col: activa, cambioTema: false, t: 0, dur: WEBGL2 ? 4800 : 1200 };
@@ -638,6 +659,7 @@ let last = performance.now();
 function loop(t) {
   const dT = Math.min(50, Math.max(0, t - last)); last = t;
   coreografiaCambio(dT); coreografiaMenu(dT);
+  if (activa && !enMenu && !cambio && !viaje) dominus.cuadro(t, dT);   // antes de suavizar S (velocidad x3, caos, brillo)
   for (const id in AST) {
     const a = AST[id];
     if (!a.escena) continue;
@@ -669,6 +691,16 @@ function loop(t) {
   if (activa && !enMenu) tablero.cuadro(AST[activa].S, dT);
   requestAnimationFrame(loop);
 }
+
+/* ---------- Dominus nostrum: modo de cerebro externo (sin conectar todavía) ---------- */
+dominus = crearModo({
+  zona, stage, meta,
+  asistente: () => (activa && !enMenu ? AST[activa] : null),
+  escena: () => (activa ? escenaDe(activa) : null),
+  modo: () => modo,
+  poner, pista, lector, leerAjuste,
+  buscar: q => buscar(q, { recordar: false }),
+});
 
 /* ---------- Arranque ---------- */
 await Promise.all(COLECCIONES.map(c => cargarPiezas(c.id).catch(() => {})));
@@ -720,4 +752,5 @@ Object.defineProperty(window, '__agios', { value: Object.freeze({
   get piezas() { return ast()?.piezas.length ?? 0; }, get ventanas() { return ast()?.ventanas.abiertas() ?? 0; },
   get coleccion() { return activa; }, get dibujos() { return Object.fromEntries(Object.entries(AST).map(([k, a]) => [k, a.dibujos])); },
   get nebulosa() { return nebDibujos; }, webgl2: WEBGL2, app: 'Anesthios',
+  get caos() { return ast()?.S.caos ?? null; }, get dominus() { return dominus.estado; },
 }) });

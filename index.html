@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="./css/estilos.css">
 <link rel="stylesheet" href="./css/kyrien.css">
 <link rel="stylesheet" href="./css/menu.css">
+<link rel="stylesheet" href="./css/dominus.css">
 <script type="importmap">
 {"imports":{
   "three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
@@ -57,7 +58,7 @@
     <span class="v t-kyrien">ANESTHIOS<small>Asistentes Gonzaleanos</small></span>
   </button>
   <div class="esp"></div>
-  <div class="chip-estado" id="chip"><i></i><span id="estado">apagado</span></div>
+  <div class="chip-estado" id="chip"><i></i><span id="estado">apagado</span><b id="dmReloj" hidden></b></div>
   <button id="btnMenu" class="boton-menu" type="button" title="Menú" aria-label="Menú">☰</button>
 </header>
 <div class="reglas"><div class="regla t-agios"></div><div class="regla t-kyrien">✦</div></div>
@@ -120,6 +121,8 @@
 <form class="consola" id="form">
   <div class="sugerencias" id="sugerencias">
     <button id="cerrarTodas" type="button">✕ Cerrar todas</button>
+    <button id="sugDominus" type="button" title="Enciende o apaga Dominus nostrum">✦ /Dominus nostrum</button>
+    <button id="sugExtender" type="button" title="Extiende el tiempo de Dominus nostrum" hidden>⏱ /extender(5)</button>
     <span id="recientes" style="display:contents"></span>
     <button id="sugIndice" type="button" data-a="indice">☰ Índice</button>
   </div>
