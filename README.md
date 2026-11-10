@@ -151,10 +151,40 @@ cualquier frase o idea. Las citas `(Lect. Gonz. 44)`, `(Evang. Gonz. 12)`… son
 **enlaces**: al tocarlas se abre esa pieza como ventana de Agios sin salir de
 Kyrien. `(Palabra del Señor, fecha)` enlaza a la entrada de Logos de esa fecha.
 
+## Dominus nostrum (preparado, sin conectar todavía)
+
+Un modo para **platicar sobre lo encontrado**, con Agios o con Kyrien
+(especificación: `docs/DOMINUS.md`; prototipo: `prototipo/dominus/`).
+
+1. Con el asistente encendido, escribe **`/Dominus nostrum`** (o toca **✦ /Dominus nostrum**
+   en las sugerencias). Se activa por **5 minutos**; el chip muestra la cuenta regresiva.
+   Escribe el comando otra vez para apagarlo. El teclado del celular no estorba:
+   `/ Domínus nostrum`, `Dominus noster` o `/dominus nostro` también sirven.
+2. Lo que escribas ahora es una **pregunta**, no una búsqueda. Si no hay ventanas
+   abiertas, primero se hace la búsqueda local normal con tu pregunta.
+3. Antes de consultar se muestra **exactamente qué se mandaría**: tu pregunta y el
+   pasaje de cada ventana abierta (nunca la pieza completa ni el documento), cada
+   uno con su número **[n]** y una casilla para quitarlo.
+4. La respuesta abre una **ventana de conversación**; las citas **[n]** abren ese
+   pasaje en el lector y **«Qué se ha enviado»** muestra todo el contexto.
+5. **`/extender(5)`** suma minutos: hasta 10 en total por activación (máximo 15 min).
+
+**La conversación vive solo en la memoria de la app** y se borra al apagar el modo
+(por el comando, al cumplirse el tiempo, al apagar al asistente, al cambiar de
+asistente o al volver al menú). Nunca se guarda en el dispositivo.
+
+**En esta versión no hay ninguna conexión a internet.** El cerebro es una pieza
+intercambiable (`js/dominus/cerebros/`) y hoy hay dos, ninguno usa la red:
+**Sin conectar** (por defecto: no responde ni envía nada) y **Demostración
+(simulado)**, con respuestas de ejemplo para probar el flujo. Se elige en
+☰ → Ajustes. Conectar un cerebro real será otro trabajo: un archivo nuevo en
+`js/dominus/cerebros/` y su opción en Ajustes; en el repositorio nunca habrá claves.
+
 ## Menú ☰ → Ajustes
 
 - **Transición entre asistentes:** Implosión (por defecto), Estallido o Al azar.
 - **Al abrir la app:** mostrar el menú (por defecto) o entrar al último asistente.
+- **Cerebro de Dominus nostrum:** Sin conectar (por defecto) o Demostración (simulado).
 
 Se guardan en el dispositivo. Para añadir un ajuste nuevo basta con agregar una
 entrada a `AJUSTES` en `js/paneles.js`.
@@ -220,7 +250,7 @@ Kyrien (`doctrina`). Para agregar, por ejemplo, «Predicaciones»:
    `js/escenas/index.js`. Exporta `{ id, nombre, crear(contenedor, S) }` y
    `crear` devuelve `{ redimensionar, dibujar, destruir, proyectar, puntoDeAnillo }`.
    Lee del estado compartido `S`: `energy`, `mult`, `apertura`, `temblor`,
-   `destello` (mira `agios.js`). Si además expone `invocar()` y
+   `destello` y `caos` (0…1, modo Dominus nostrum; con 0 se ve igual que siempre) (mira `agios.js`). Si además expone `invocar()` y
    `puntoDeHechizo(i, n)` (como `kyrien.js`), las ventanas nacen de su hechizo y
    durante el procesamiento `S.apertura` baja de 1 a 0 al ritmo del avance.
    Para la transición y el menú, agrega su forma a `FORMAS` en
@@ -238,6 +268,7 @@ index.html               interfaz (prototipo/anesthios, kyrien, transicion y men
 css/estilos.css          base y mundo de Agios
 css/kyrien.css           mundo de Kyrien
 css/menu.css             menú nebulosa, selector, ajustes, árbol
+css/dominus.css          modo Dominus nostrum (panel, conversación, chip) en los dos mundos
 css/fuentes.css          tipografías locales
 fuentes/                 Rajdhani, JetBrains Mono, Cinzel, Cormorant Garamond (woff2 + OFL)
 js/app.js                asistentes, menú, transiciones, estados, subir, buscar, enlaces
@@ -251,6 +282,9 @@ js/ordinales.js          ordinales en español ⇄ número (1–999)
 js/docx.js               lectura del .docx (JSZip + DOMParser: estilos, tamaño, negrita, alineación)
 js/trabajador.js         Web Worker: análisis, hash, embeddings por lotes, búsqueda
 js/motor/                fragmentos y buscador (exacta + significado + fusión)
+js/dominus/              Dominus nostrum: modo.js (interruptor, tiempo, comandos), conversacion.js
+                         (contexto en memoria, panel, ventana), efectos.js (rayos, aura, encogido),
+                         instruccion.js y cerebros/ (sin-conectar, demostracion)
 js/db.js                 IndexedDB
 js/lector.js, js/paneles.js
 sw.js, manifest.webmanifest, iconos/
@@ -280,3 +314,10 @@ Librerías por CDN (jsDelivr) con versión fija: three 0.170.0, JSZip 3.10.1 y
   punta a punta (hechizo al ritmo del avance, interrupción, referencias,
   enlaces, inserciones en medio, renombradas), sin WebGL 2, sin conexión,
   privacidad y capturas en celular y tableta. Ver los comentarios del archivo.
+- **Dominus nostrum (desarrollo):** `pruebas/e2e/e2e-dominus.mjs` recorre las
+  pruebas de `docs/DOMINUS.md` (sección 10): actualización desde `main` sin
+  perder los datos de Agios ni de Kyrien, comandos, ciclo completo con
+  Demostración, cero peticiones de red, apagado sin rastro (pantalla,
+  localStorage, sessionStorage, IndexedDB y cachés), `/extender`, encogido con
+  teclado, rendimiento con CPU ×4 frente al prototipo y escenas idénticas píxel
+  a píxel con `caos = 0`.

@@ -216,7 +216,7 @@ await paso('A2. Se publica la versión nueva en el mismo origen: el service work
   for (let k = 0; ; k++) {
     if (await page.$('#orbes').catch(() => null)) { recargoSola = true; break; }
     const c = await page.evaluate(() => caches.keys()).catch(() => []);
-    if (c.includes('agios-app-v3') && !c.includes('agios-app-v2') && k > 5) break;
+    if (c.includes('agios-app-v4') && !c.includes('agios-app-v2') && k > 5) break;
     if (k === 90) { forzada = true; await page.evaluate(() => navigator.serviceWorker.getRegistration().then(r => r.update())).catch(() => {}); }
     verdad(k < 240, 'la versión nueva no se activó: ' + c);
     await page.waitForTimeout(1000);
@@ -225,7 +225,7 @@ await paso('A2. Se publica la versión nueva en el mismo origen: el service work
   await listo();
   await page.waitForSelector('#orbes .orbe', { timeout: 30000 });
   const cachés = await page.evaluate(() => caches.keys());
-  verdad(cachés.includes('agios-app-v3') && !cachés.some(k => /agios-app-v[12]$/.test(k)), 'cachés de la app: ' + cachés);
+  verdad(cachés.includes('agios-app-v4') && !cachés.some(k => /agios-app-v[123]$/.test(k)), 'cachés de la app: ' + cachés);
   verdad(cachés.includes('transformers-cache') && cachés.includes('agios-cdn-v1'), 'se perdió una caché que debía conservarse: ' + cachés);
   return { segundos: Math.round((Date.now() - t0) / 1000), recargoSola, comprobacion: forzada ? 'registration.update()' : 'automática', cachés };
 });

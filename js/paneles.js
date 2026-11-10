@@ -112,6 +112,10 @@ export const AJUSTES = [
     { valor: 'menu', titulo: 'Mostrar el menú', desc: 'La nebulosa con un orbe por asistente' },
     { valor: 'ultimo', titulo: 'Entrar al último asistente usado', desc: 'Directo, sin pasar por el menú' },
   ] },
+  { clave: 'anesthios.dominus.cerebro', titulo: 'Cerebro de Dominus nostrum', defecto: 'sin-conectar', opciones: [
+    { valor: 'sin-conectar', titulo: 'Sin conectar', desc: 'Todavía no hay un cerebro conectado: no responde y no se envía nada' },
+    { valor: 'demostracion', titulo: 'Demostración (simulado)', desc: 'Respuestas de ejemplo para probar el modo. No se envía nada' },
+  ] },
 ];
 export function leerAjuste(clave) {
   const a = AJUSTES.find(x => x.clave === clave);

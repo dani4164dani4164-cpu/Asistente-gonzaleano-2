@@ -7,6 +7,8 @@
      S.apertura  0..1  el núcleo se abre en fragmentos
      S.temblor   0..1  vibración ligera
      S.destello  {color: THREE.Color, k: 0..1}  luz verde (éxito) o roja (error)
+     S.caos      0..1  inestabilidad (modo Dominus nostrum): núcleo, anillos y
+                       circuitos tiemblan de forma errática
    Además expone:
      proyectar(vec3)      -> {x, y} en px CSS dentro del contenedor
      puntoDeAnillo(i, a)  -> posición en pantalla de un punto del anillo i
@@ -56,6 +58,15 @@ function puntoEn(p,f,dest){
   const d=f*p.total;let j=1;while(j<p.largo.length-1&&p.largo[j]<d)j++;
   const a=p.largo[j-1],b=p.largo[j],k=b>a?(d-a)/(b-a):0;
   return dest.lerpVectors(p.xyz[j-1],p.xyz[j],k);
+}
+/* Ruido errático: suma de senos rápidos + sacudidas al azar (para S.caos) */
+const sac=new Map();
+function errat(t,s){
+  let j=sac.get(s);if(!j){j={v:0,h:0};sac.set(s,j);}
+  // ritmo acorde a la velocidad x3 (60 % del ritmo anterior)
+  if(Math.random()<0.021){j.v=(Math.random()-.5)*2;j.h=1;}j.h*=0.91;
+  const u=t*0.6;
+  return Math.sin(u*0.011+s*7.13)*0.45+Math.sin(u*0.027+s*3.71)*0.3+Math.sin(u*0.061+s*1.37)*0.25+j.v*j.h;
 }
 const holo=extra=>({transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,...extra});
 
@@ -175,7 +186,9 @@ export default {
       const tb=S.temblor*0.018;
       camara.position.set((Math.random()-.5)*tb,(Math.random()-.5)*tb,distBase/S.zoom);camara.lookAt(0,0,0);
 
-      circuitos.rotation.set(0.45+0.15*Math.sin(T*0.0002),T*0.00015,0.2);
+      const c=S.caos||0;
+      circuitos.rotation.set(0.45+0.15*Math.sin(T*0.0002)+c*0.22*errat(t,1),T*0.00015+c*0.3*errat(t,2),0.2+c*0.22*errat(t,3));
+      circuitos.scale.setScalar(1+c*0.05*errat(t,4));
       lineasPistas.forEach((l,i)=>{l.material.color.copy(tono(t,i*0.2,S,col));l.material.opacity=alfa(0.35,S);});
       for(let i=0;i<nodosPos.length;i++)pintar(nodosCol,i,tono(t,Math.floor(i/2)*0.2,S,col),alfa(0.8,S));
       gNodos.attributes.color.needsUpdate=true;
@@ -186,15 +199,16 @@ export default {
       });
       gPul.attributes.position.needsUpdate=true;gPul.attributes.color.needsUpdate=true;
 
-      escaner.rotation.set(1.15+0.3*Math.sin(T*0.00025),-T*0.0002,0.35*Math.cos(T*0.00018),'YXZ');
+      escaner.rotation.set(1.15+0.3*Math.sin(T*0.00025)+c*0.25*errat(t,5),-T*0.0002+c*0.3*errat(t,6),0.35*Math.cos(T*0.00018)+c*0.25*errat(t,7),'YXZ');
       anilloMarcas.rotation.z=-T*0.0002;
       mMarcas.color.copy(tono(t,0.5,S,col));mMarcas.opacity=alfa(0.6,S);
       mGuia.color.copy(tono(t,0.7,S,col));mGuia.opacity=alfa(0.3,S);
       barrido.rotation.z=T*0.002;mBarrido.color.copy(tono(t,1,S,col));mBarrido.opacity=alfa(0.9*e,S);
 
       anillos.forEach(({k,cardan,mA,mP,punteado})=>{
-        const v=T*0.0004*(k%2?-1:1)+k;
-        if(k===3)cardan.rotation.set(Math.PI/2,v,0);else if(k%2)cardan.rotation.set(v,0,0);else cardan.rotation.set(0,v,0);
+        const v=T*0.0004*(k%2?-1:1)+k+c*0.45*errat(t,10+k);
+        const wx=c*0.16*errat(t,20+k),wy=c*0.16*errat(t,30+k);
+        if(k===3)cardan.rotation.set(Math.PI/2+wx,v,wy);else if(k%2)cardan.rotation.set(v,wy,wx);else cardan.rotation.set(wx,v,wy);
         punteado.rotation.z=T*0.001;
         mA.color.copy(tono(t,k,S,col));mA.opacity=alfa(0.55,S);
         mP.color.copy(tono(t,k+0.5,S,col));mP.opacity=alfa(0.6,S);
@@ -202,7 +216,10 @@ export default {
 
       // Núcleo: al abrirse, los fragmentos se separan y giran; la luz interior crece
       const pulso=0.5+0.5*Math.sin(T*0.004);
-      nucleo.scale.setScalar((1+0.25*pulso*e)*(1+0.8*ap)*(1+0.6*dk));
+      // Inestable: el núcleo tiembla y salta de forma errática
+      const jx=c*R*0.055*errat(t,40),jy=c*R*0.055*errat(t,41),jz=c*R*0.03*errat(t,42);
+      nucleo.position.set(jx,jy,jz);caparazon.position.set(jx*0.8,jy*0.8,jz*0.8);halo.position.set(jx*0.6,jy*0.6,0);
+      nucleo.scale.setScalar((1+0.25*pulso*e)*(1+0.8*ap)*(1+0.6*dk)*(1+c*0.35*Math.abs(errat(t,43))));
       mNuc.color.copy(tono(t,0,S,col));mNuc.opacity=alfa(0.5+0.4*pulso+0.3*ap,S);
       const sep=ap*0.2,giro=ap*0.9;
       caras.forEach((f,i)=>{

@@ -11,6 +11,8 @@
      S.apertura  0..1  la pupila se dilata y se vuelve un portal de chispas
      S.temblor   0..1  vibración ligera
      S.destello  {color: THREE.Color, k: 0..1}  luz verde o roja
+     S.caos      0..1  inestabilidad (modo Dominus nostrum): la pupila brilla y se
+                       dilata; roca y anillos de hechizo tiemblan de forma errática
    Expone: redimensionar, dibujar, destruir, proyectar(p), puntoDeAnillo(i, a)
    ============================================================ */
 import * as THREE from 'three';
@@ -62,6 +64,15 @@ function tono(t,off,S,dest){
   return dest;
 }
 const alfa=(a,S)=>Math.min(1,a*(0.5+0.5*Math.max(S.energy,S.destello.k)));
+/* Ruido errático: suma de senos rápidos + sacudidas al azar (para S.caos) */
+const sac=new Map();
+function errat(t,s){
+  let j=sac.get(s);if(!j){j={v:0,h:0};sac.set(s,j);}
+  // ritmo acorde a la velocidad x3 (60 % del ritmo anterior)
+  if(Math.random()<0.021){j.v=(Math.random()-.5)*2;j.h=1;}j.h*=0.91;
+  const u=t*0.6;
+  return Math.sin(u*0.011+s*7.13)*0.45+Math.sin(u*0.027+s*3.71)*0.3+Math.sin(u*0.061+s*1.37)*0.25+j.v*j.h;
+}
 const holo=x=>({transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,...x});
 
 /* ---------- Sistema de chispas reutilizable ---------- */
@@ -367,10 +378,12 @@ export default {
       const tb=S.temblor*0.018;camara.position.set((Math.random()-.5)*tb,(Math.random()-.5)*tb,distBase/S.zoom);camara.lookAt(0,0,0);
 
       // Órbitas
-      incA.rotation.set(1.18+0.08*Math.sin(T*0.0002),0,0.25);giraA.rotation.z=T*0.00018;
-      incB.rotation.set(0.35,-0.95+0.1*Math.sin(T*0.00017),0);giraB.rotation.z=-T*0.0004;
-      incH.rotation.set(-0.75,0.5,T*0.00012);hexa.rotation.z=T*0.0003;
-      aro.rotation.set(T*0.0005,1.2,0);corona.rotation.set(1.45,0.2,-T*0.00035);
+      const c=S.caos||0,E=k=>c*errat(t,k);
+      incA.rotation.set(1.18+0.08*Math.sin(T*0.0002)+0.2*E(1),0.18*E(2),0.25+0.2*E(3));giraA.rotation.z=T*0.00018+0.5*E(4);
+      incB.rotation.set(0.35+0.2*E(5),-0.95+0.1*Math.sin(T*0.00017)+0.2*E(6),0.18*E(7));giraB.rotation.z=-T*0.0004+0.5*E(8);
+      incH.rotation.set(-0.75+0.18*E(9),0.5+0.18*E(10),T*0.00012+0.3*E(11));hexa.rotation.z=T*0.0003+0.4*E(12);
+      aro.rotation.set(T*0.0005+0.25*E(13),1.2+0.2*E(14),0.2*E(15));corona.rotation.set(1.45+0.2*E(16),0.2+0.2*E(17),-T*0.00035+0.35*E(18));
+      hexa.position.set(R*0.02*E(19),R*0.02*E(20),0);aro.position.set(R*0.025*E(21),R*0.025*E(22),0);
       giroIris.rotation.z=T*0.0016;
 
       // Romper / armar: los arcos de los anillos se dispersan; la roca estalla en trozos
@@ -379,7 +392,7 @@ export default {
         a.me.rotation.set(a.gx*rom,a.gy*rom,a.gz*rom);
       }
       for(const tr of trozos){
-        tr.me.position.copy(tr.centro).addScaledVector(tr.dir,rom*tr.dist*R);
+        tr.me.position.copy(tr.centro).addScaledVector(tr.dir,rom*tr.dist*R+c*R*0.012*Math.abs(errat(t,100+tr.me.id%40)));
         q.setFromAxisAngle(tr.eje,rom*tr.giro+rom*T*0.0006*tr.giro);tr.me.quaternion.copy(q);
       }
       hexa.scale.setScalar(1+0.35*rom);aro.scale.setScalar(1+0.3*rom);corona.scale.setScalar(1+0.25*rom);
@@ -414,16 +427,18 @@ export default {
       if(reloj>proxMirada){objX=(Math.random()-0.5)*0.4;objY=(Math.random()-0.5)*0.2;proxMirada=reloj+1800+Math.random()*2500;}
       const vel=Math.min(1,0.06*paso);
       mirX+=(objX*e*(1-busca)-mirX)*vel;mirY+=(objY*e*(1-busca)-mirY)*vel;
-      globo.rotation.set(-mirY*0.35,mirX*0.35,0);
+      globo.rotation.set(-mirY*0.35+0.09*E(30),mirX*0.35+0.09*E(31),0.07*E(32));
+      ojo.position.set(R*0.04*E(33),R*0.04*E(34),R*0.02*E(35));      // la roca tiembla con el ojo
       const ix=Math.max(-1,Math.min(1,mirX/0.2))*R*0.07*abre,iy=Math.max(-1,Math.min(1,mirY/0.1))*R*0.025*abre;
       iris.position.set(ix,iy,zFrente(RG,ix,iy)-zFrente(RG,0,0));
       iris.scale.set(1.12,1.12*Math.min(1,abre*1.15),1.12);
       // Pupila: al buscar se dilata y se enciende
-      const pulso=0.5+0.5*Math.sin(T*0.004),dil=1+0.08*pulso*e+0.45*busca;
+      const pulso=0.5+0.5*Math.sin(T*0.004),dil=1+0.08*pulso*e+0.45*busca+c*(1.05+0.25*Math.sin(t*0.009)+0.15*E(36));   // Dominus: se dilata mucho
       pupila.scale.setScalar(dil);bordePup.scale.setScalar(dil);
-      tono(t,0,S,col);mPup.color.copy(negro).lerp(col,0.75*busca);mPup.opacity=0.92*fOjo;
-      luzPup.scale.setScalar(R*(0.12+0.1*busca*(0.8+0.4*pulso))*dil);mLuzPup.color.copy(col);mLuzPup.opacity=busca*(0.6+0.4*pulso)*fOjo;
-      brillo.scale.setScalar(R*(0.42+0.18*pulso*e+0.25*busca+0.7*dk));mBrillo.opacity=alfa(0.18+0.25*e+0.3*busca+0.5*dk,S)*fOjo;
+      const enc=Math.max(busca,c);                                      // la pupila se enciende al buscar o en Dominus
+      tono(t,0,S,col);mPup.color.copy(negro).lerp(col,Math.min(1,0.75*busca+0.95*c));mPup.opacity=0.92*fOjo;
+      luzPup.scale.setScalar(R*(0.12+0.1*busca*(0.8+0.4*pulso)+0.14*c*(0.8+0.4*pulso))*dil);mLuzPup.color.copy(col);mLuzPup.opacity=Math.min(1,enc*(0.6+0.4*pulso)+0.3*c)*fOjo;
+      brillo.scale.setScalar(R*(0.42+0.18*pulso*e+0.25*busca+0.7*dk+0.35*c));mBrillo.opacity=alfa(0.18+0.25*e+0.3*busca+0.5*dk,S)*fOjo;
 
       // Hechizo invocado: vuelan los símbolos, se forma el círculo, gira y se desvanece
       if(tHech>=0){

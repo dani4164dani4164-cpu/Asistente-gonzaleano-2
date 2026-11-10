@@ -20,7 +20,9 @@ export function crearVentanas({ zona, cont, escena, S, tema = 'agios', enlazar =
     if (a) { ev.preventDefault(); alEnlace(a); }
   });
   let zSig = 10;
-  const vivas = () => [...cont.querySelectorAll('.tarjeta:not(.cerrando)')];
+  const datos = new WeakMap();                    // ventana → resultado que muestra (para Dominus nostrum)
+  // La ventana de conversación de Dominus nostrum vive en el mismo contenedor, pero no es un resultado.
+  const vivas = () => [...cont.querySelectorAll('.tarjeta:not(.cerrando):not(.dm-chat)')];
   const avisar = () => alCambiar?.(vivas().map(t => ({ pieza: t.dataset.pieza, corta: t.dataset.corta })));
 
   /* Busca un hueco libre para una ventana nueva sin tapar las que ya están */
@@ -100,6 +102,7 @@ export function crearVentanas({ zona, cont, escena, S, tema = 'agios', enlazar =
         `<span class="tipo">${escaparHtml(r.tipo)}</span><button class="x" type="button" title="Cerrar" aria-label="Cerrar">✕</button></div>` +
         `<p>${enlazar(resaltarHtml(r.extracto.texto, r.extracto.intervalos), r.col)}</p>` +
         `<div class="pie"><span class="origen">${escaparHtml(r.origen || '')}</span><button type="button" class="ver">Ver completo</button></div>`;
+      datos.set(t, r);
       t.querySelector('.x').onclick = () => cerrar(t);
       t.querySelector('.ver').onclick = () => alVerCompleto(r);
       t.style.visibility = 'hidden';
@@ -137,5 +140,11 @@ export function crearVentanas({ zona, cont, escena, S, tema = 'agios', enlazar =
     }
   }).observe(zona);
 
-  return { mostrar, cerrar, cerrarTodas, abiertas: () => vivas().length };
+  return {
+    mostrar, cerrar, cerrarTodas, abiertas: () => vivas().length,
+    /** Ventanas abiertas con lo que muestra cada una: [{t, r}] en orden de apertura */
+    lista: () => vivas().filter(t => datos.has(t)).map(t => ({ t, r: datos.get(t) })),
+    /** Hace arrastrable otra ventana del mismo contenedor (la conversación de Dominus nostrum) */
+    mover: hacerMovible,
+  };
 }

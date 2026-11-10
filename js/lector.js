@@ -20,12 +20,14 @@ const $ = id => document.getElementById(id);
  */
 export function crearLector(ctx) {
   let actual = null, prev = null, next = null, colActual = null;
+  let libre = false;                 // mostrando un texto que no es una pieza (contexto de Dominus nostrum)
 
   function abrir(id, pasaje = null, colId = ctx.activa()) {
     const { A, piezas, tema } = ctx.datos(colId);
     const p = piezas.find(x => x.id === id);
     if (!p) return false;
-    actual = p; colActual = colId;
+    actual = p; colActual = colId; libre = false;
+    $('lector').classList.remove('libre');
     const reales = piezas.filter(q => !q.repetida);
     const et = A.etiqueta(p);
     $('lector').dataset.tema = tema;
@@ -85,7 +87,25 @@ export function crearLector(ctx) {
     return true;
   }
 
-  function cerrar() { $('lector').classList.remove('abierto'); actual = null; }
+  function cerrar() {
+    $('lector').classList.remove('abierto'); actual = null;
+    if (libre) { libre = false; $('lector').classList.remove('libre'); $('lectorTexto').innerHTML = ''; $('lectorTitulo').textContent = ''; }
+  }
+
+  /** Un texto que no es una pieza del documento (p. ej. «Qué se ha enviado» de Dominus nostrum) */
+  function abrirTexto(titulo, html, tema = 'agios', subtitulo = 'Dominus nostrum') {
+    actual = null; prev = next = null; libre = true;
+    $('lector').dataset.tema = tema;
+    $('lector').classList.add('libre');
+    $('lectorTitulo').innerHTML = `${e(titulo)}<small>${e(subtitulo)}</small>`;
+    $('lecTipos').innerHTML = '';
+    const art = $('lectorTexto');
+    art.innerHTML = `<div class="cuerpo">${html}</div>`;
+    $('lector').classList.add('abierto');
+    requestAnimationFrame(() => { art.scrollTop = 0; });
+  }
+  /** Cierra el lector solo si muestra un texto libre (al apagarse Dominus nostrum no queda nada) */
+  function cerrarTexto() { if (libre) cerrar(); }
 
   function abrirIndice(colId = colActual && $('lector').classList.contains('abierto') ? colActual : ctx.activa()) {
     const { A, piezas } = ctx.datos(colId);
@@ -154,7 +174,7 @@ export function crearLector(ctx) {
     ctx.alEnlace(a);
   });
 
-  return { abrir, cerrar, abrirIndice, get actual() { return actual; }, get coleccion() { return colActual; } };
+  return { abrir, cerrar, abrirIndice, abrirTexto, cerrarTexto, get libre() { return libre; }, get actual() { return actual; }, get coleccion() { return colActual; } };
 }
 
 /* Intervalos a resaltar en cada párrafo (k → [[a,b],…]) a partir del pasaje hallado. */

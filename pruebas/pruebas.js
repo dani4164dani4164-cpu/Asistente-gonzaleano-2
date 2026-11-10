@@ -154,6 +154,35 @@ prueba('Normalización con mapa: posiciones del texto original', () => {
   igual(FRASE_UNICA.includes('alfarero'), true);
 });
 
+/* ---------- Dominus nostrum: cerebros (ninguno usa la red en esta versión) ---------- */
+try {
+  const { respuestaDeEjemplo, default: demo } = await import('../js/dominus/cerebros/demostracion.js');
+  const { CEREBROS, CEREBRO_POR_DEFECTO, ErrorCerebro } = await import('../js/dominus/cerebros/index.js');
+  const sinConectar = (await import('../js/dominus/cerebros/sin-conectar.js')).default;
+  let errSC = null; try { await sinConectar.responder({ instruccion: '', fragmentos: [], mensajes: [] }); } catch (e) { errSC = e; }
+  const senal = new AbortController(); senal.abort();
+  let errAbort = null; try { await demo.responder({ fragmentos: [], mensajes: [], senal: senal.signal }); } catch (e) { errAbort = e; }
+  prueba('Dominus nostrum: registro de cerebros («Sin conectar» por defecto, ninguno envía)', () => {
+    igual(Object.keys(CEREBROS), ['sin-conectar', 'demostracion']);
+    igual(CEREBRO_POR_DEFECTO, 'sin-conectar');
+    igual([sinConectar.envia, demo.envia], [false, false]);
+  });
+  prueba('Dominus nostrum: «Sin conectar» no responde (error no-conectado)', () => {
+    verdad(errSC instanceof ErrorCerebro, 'debía ser ErrorCerebro'); igual(errSC.tipo, 'no-conectado');
+  });
+  prueba('Dominus nostrum: la Demostración respeta la señal de aborto', () => igual(errAbort?.name, 'AbortError'));
+  prueba('Dominus nostrum: la Demostración solo cita fragmentos que existen, en todos los turnos', () => {
+    for (const n of [1, 2, 3, 5]) {
+      const frags = Array.from({ length: n }, (_, i) => ({ n: i + 1, ref: 'R' + (i + 1), tipo: 'T', texto: 'x' }));
+      for (let turno = 1; turno <= 7; turno++) {
+        const msgs = Array.from({ length: turno }, (_, i) => ({ rol: 'usuario', texto: 'p' + i }));
+        const t = respuestaDeEjemplo(frags, msgs), citas = [...t.matchAll(/\[(\d+)\]/g)].map(m => +m[1]);
+        verdad(citas.length >= 1 && citas.every(c => c >= 1 && c <= n), `${n} fragmentos, turno ${turno}: ${t}`);
+      }
+    }
+  });
+} catch (e) { resultados.push({ nombre: 'Dominus nostrum: cargar los cerebros', ok: false, error: e.stack || e.message }); }
+
 /* ---------- Informe ---------- */
 /* ---------- Kyrien: Doctrina Gonzaleana (lee un .docx ficticio en el navegador) ---------- */
 try { await (await import('./pruebas-doctrina.js')).correr(prueba, igual, verdad); }
